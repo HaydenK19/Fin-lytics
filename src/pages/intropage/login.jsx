@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './login.scss';
 
-const LoginBlock = () => {
-    const [isSigningUp, setIsSigningUp] = useState(true);
+const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp }) => {
+    const [isSigningUp, setIsSigningUp] = useState(initialSigningUp);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [number, setNumber] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+
+    useEffect(() => {
+        setIsSigningUp(initialSigningUp);
+    }, [initialSigningUp]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -20,6 +24,7 @@ const LoginBlock = () => {
     return (
         <div className='login-block'>
             <div className="login">
+            <button className="close-btn" onClick={toggleLoginBlock}>x</button>
                 <h2>{isSigningUp ? 'Sign Up' : 'Log In'}</h2>
                 
                 <div className={`login-container ${isSigningUp ? 'expanded' : 'collapsed'}`}>
@@ -30,7 +35,7 @@ const LoginBlock = () => {
                         {isSigningUp && (
                             <input type="password" placeholder="Confirm Password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
                         )}
-                        <button type="submit">{isSigningUp ? 'Sign Up' : 'Sign In'}</button>
+                        <button type="submit" className='submit-btn'>{isSigningUp ? 'Sign Up' : 'Sign In'}</button>
                     </form>
                 </div>
 

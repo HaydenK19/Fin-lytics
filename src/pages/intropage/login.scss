@@ -68,14 +68,33 @@
     }
   }
 
+.close-btn {
+  position: absolute;
+  background: transparent;
+  top: 15px;
+  right: 20px;
+  border: none;
+  font-size: 1.5rem;
+  color: #333;
+  z-index: 10;
+  cursor: pointer;
+  opacity: 0;
+    animation: fadeIn .5s ease-out forwards;
+
+  &:hover{
+     color:rgb(41, 117, 61);
+  }
+}
+
+
 @keyframes gradientBG {
     0% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
 }
   
-  .login {
-    button {
+.login{
+  .submit-btn {
       background: linear-gradient(120deg, #87b68b, #97ceac, #5c8162);
       background-size: 200% 200%;
       color: rgb(0, 0, 0);
@@ -92,7 +111,9 @@
         padding: 12px;
       }
     }
-  }
+}
+    
+  
   
   .toggle-text {
     color: #7e7e97;
