@@ -13,7 +13,7 @@
 }
 
 .nav-left .logo {
-  width: 225px; 
+  width: 120px; 
   height: auto;
 }
 
@@ -43,8 +43,8 @@
 
 .nav-mid a:hover,
 .nav-right a:hover {
-  background-color: #8f8f8f; 
-  color: white;
+  background-color: #d1d1d1; 
+  // color: white;
 }
 
 .nav-right {
@@ -52,5 +52,74 @@
   align-items: center;
   li {
     margin: 0 15px;  
+  }
+}
+
+.profile-drop{
+  display: inline-block;
+  position: relative;
+  
+  &:hover{
+    cursor: pointer;
+  }
+}
+
+.drop-button.active{
+  background-color: #8f8f8f;
+}
+
+.profile-content.show {
+  display: block;
+}
+
+.profile-content{
+  background-color: #f2f2f2;
+  margin-top: 20px;
+  position: absolute;
+  right: 0;
+  box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  display: none;
+
+
+    ul {
+      // display: inline-block;
+      list-style: none;
+      padding: 0;
+      margin:0;
+    }
+}
+
+.profile-content li {
+  display: flex; 
+  justify-content: center; 
+  align-items: center;
+  padding: 10px 20px;
+  margin:0;
+  width: 100%;
+  cursor: pointer;
+  border-bottom: 1px solid #d1d1d1;
+  box-sizing: border-box; 
+  white-space: nowrap;
+}
+
+.profile-content li:last-child {
+  border-bottom: none;
+}
+
+.profile-content li:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.profile-content li.logout {
+  color: rgb(0, 0, 0);
+  font-weight: bold;
+}
+
+.profile-content li.greeting {
+  text-decoration: none;
+  &:hover{
+    background: rgba(0, 0, 0, 0);
+    cursor:default;
   }
 }
