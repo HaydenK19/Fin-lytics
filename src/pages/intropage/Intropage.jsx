@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import "./intropage.scss";
 import LoginBlock from './login';
-import DemoBlock from "./demo";
+// import DemoBlock from "./demo";
 
 const Intropage = () => {
     const [showLogin, setShowLogin] = useState(false);

@@ -86,12 +86,6 @@
   }
 }
 
-
-@keyframes gradientBG {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-}
   
 .login{
   .submit-btn {
@@ -113,8 +107,6 @@
     }
 }
     
-  
-  
   .toggle-text {
     color: #7e7e97;
     cursor: pointer;
@@ -126,3 +118,9 @@
       color: #81d397;
     }
   }
+
+@keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}

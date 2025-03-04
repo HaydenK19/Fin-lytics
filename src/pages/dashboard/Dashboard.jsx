@@ -5,7 +5,7 @@ import DbNavbar from "../../components/navbar/DbNavbar"
 const Dashboard = () => {
     return (
         <div className="dashboard">
-            Dashboard
+            db
         </div>
     )
 }

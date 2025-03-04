@@ -12,7 +12,7 @@ import NoPage from "./pages/NoPage";
 import DbNavbar from './components/navbar/DbNavbar';
 import IntroNavbar from './components/navbar/IntroNavbar';
 
-const isAuthenticated = false;  //manually change user auth
+const isAuthenticated = true;  //manually change user auth
 
 const App = () => {
   
