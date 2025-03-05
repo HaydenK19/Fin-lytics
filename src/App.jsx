@@ -1,6 +1,6 @@
 import "./app.scss";
 import React, { useState, useEffect } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 
 import Intropage from "./pages/intropage/Intropage";
 import Dashboard from "./pages/dashboard/Dashboard";
@@ -11,8 +11,6 @@ import NoPage from "./pages/NoPage";
 
 import DbNavbar from "./components/navbar/DbNavbar";
 import IntroNavbar from "./components/navbar/IntroNavbar";
-
-const isAuthenticated = false; //manually change user auth
 
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -27,26 +25,25 @@ const App = () => {
 
   return (
     <BrowserRouter>
-      {isAuthenticated ? <DbNavbar /> : <IntroNavbar />}
+      {isAuthenticated ? <DbNavbar setIsAuthenticated={setIsAuthenticated} /> : <IntroNavbar />}
 
       <Routes>
         {isAuthenticated ? (
           <>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/jobtrack" element={<JobTrack />} />
             <Route path="/about" element={<About />} />
-            {/* <Route path="/contact" element={<Contact />} /> */}
+            <Route path="/" element={<Dashboard />} />
           </>
         ) : (
           <>
-            <Route path="/" element={<Intropage />} />
+            <Route path="/" element={<Intropage setIsAuthenticated={setIsAuthenticated} />} />
             <Route path="/about" element={<About />} />
-            {/* <Route path="/contact" element={<Contact />} /> */}
+            <Route path="/login" element={<Intropage setIsAuthenticated={setIsAuthenticated} />} />
           </>
         )}
 
-        {/* <Route path="/dashboard" element={<Dashboard />} /> */}
-
+        {/* Catch-all route for no page found */}
         <Route path="*" element={<NoPage />} />
       </Routes>
     </BrowserRouter>

@@ -28,19 +28,40 @@ const LoginBlock = ({ setIsAuthenticated }) => {
           password: password,
         });
         console.log("Sign-up successful:", response.data);
-        setIsAuthenticated(true); // Update authentication state
-        navigate("/dashboard"); // Navigate to dashboard on successful sign-up
+
+        // Authenticate user immediately after signing up
+        const loginResponse = await axios.post(
+          "http://localhost:8000/auth/token",
+          new URLSearchParams({
+            username: email,
+            password: password,
+          }),
+          {
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          }
+        );
+
+        console.log("Auto-login successful:", loginResponse.data);
+        localStorage.setItem("token", loginResponse.data.access_token); // Store token
+        setIsAuthenticated(true);
+        navigate("/dashboard"); // Redirect to dashboard
       } else {
         // Sign-in logic
-        const response = await axios.post("http://localhost:8000/auth/token", {
-          username: email, // Assuming email is used as username
-          phone_number: number,
-          password: password,
-        });
+        const response = await axios.post(
+          "http://localhost:8000/auth/token",
+          new URLSearchParams({
+            username: email,
+            password: password,
+          }),
+          {
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          }
+        );
+
         console.log("Sign-in successful:", response.data);
-        localStorage.setItem("token", response.data.access_token); // Store the token in localStorage
+        localStorage.setItem("token", response.data.access_token);
         setIsAuthenticated(true);
-        navigate("/dashboard"); // Navigate to dashboard on successful sign-in
+        navigate("/dashboard"); // Redirect to dashboard
       }
     } catch (error) {
       console.error(
@@ -48,7 +69,6 @@ const LoginBlock = ({ setIsAuthenticated }) => {
         error.response ? error.response.data : error.message
       );
 
-      // Handle specific error for existing user
       if (
         error.response &&
         error.response.status === 400 &&
@@ -57,10 +77,18 @@ const LoginBlock = ({ setIsAuthenticated }) => {
         alert(
           "User with this email already exists. Please log in or use a different email."
         );
-      } else {
+      } else if (
+        error.response &&
+        error.response.status === 400 &&
+        error.response.data.detail === "User with this phone number already exists"
+      ) {
         alert(
-          "Authentication failed. Please check your credentials and try again."
-        );
+          "User with this phone number already exists. Please log in or use a different phone number."
+        )
+      } else {
+          alert(
+            "Authentication failed. Please check your credentials and try again."
+          );
       }
     }
   };
@@ -83,13 +111,14 @@ const LoginBlock = ({ setIsAuthenticated }) => {
               onChange={(e) => setEmail(e.target.value)}
               required
             />
-            <input
+            {isSigningUp && (<input
               type="tel"
               placeholder="Phone Number"
               value={number}
               onChange={(e) => setNumber(e.target.value)}
               required
             />
+            )}
             <input
               type="password"
               placeholder="Password"

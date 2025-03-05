@@ -45,7 +45,7 @@ db_dependency = Annotated[Session, Depends(get_db)]
 # When a user registers, take their username and password
 # hash password before storing for increased security
 # The user gets added to the database, and account is created
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED, response_model=Token)
 async def create_user(db: db_dependency, create_user_request: CreateUserRequest):
     # Check if the user already exists
     existing_user = db.query(Users).filter(Users.username == create_user_request.username).first()
@@ -55,6 +55,14 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
             detail="User with this email already exists",
         )
     
+    # Check if the phone number already exists
+    existing_number = db.query(Users).filter(Users.phone_number == create_user_request.phone_number).first()
+    if existing_number:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User with this phone number already exists",
+        )
+
     # Create the user if they don't exist
     create_user_model = Users(
         username=create_user_request.username,
@@ -64,6 +72,11 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
     
     db.add(create_user_model)
     db.commit()
+    
+    # Generate token after creating user
+    token = create_access_token(create_user_model.username, create_user_model.id, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    
+    return {"access_token": token, "token_type": "bearer"}
 
 # Takes in users username and password
 # Retrive the user from the database
