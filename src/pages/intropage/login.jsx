@@ -80,15 +80,16 @@ const LoginBlock = ({ setIsAuthenticated }) => {
       } else if (
         error.response &&
         error.response.status === 400 &&
-        error.response.data.detail === "User with this phone number already exists"
+        error.response.data.detail ===
+          "User with this phone number already exists"
       ) {
         alert(
           "User with this phone number already exists. Please log in or use a different phone number."
-        )
+        );
       } else {
-          alert(
-            "Authentication failed. Please check your credentials and try again."
-          );
+        alert(
+          "Authentication failed. Please check your credentials and try again."
+        );
       }
     }
   };
@@ -111,13 +112,14 @@ const LoginBlock = ({ setIsAuthenticated }) => {
               onChange={(e) => setEmail(e.target.value)}
               required
             />
-            {isSigningUp && (<input
-              type="tel"
-              placeholder="Phone Number"
-              value={number}
-              onChange={(e) => setNumber(e.target.value)}
-              required
-            />
+            {isSigningUp && (
+              <input
+                type="tel"
+                placeholder="Phone Number"
+                value={number}
+                onChange={(e) => setNumber(e.target.value)}
+                required
+              />
             )}
             <input
               type="password"

@@ -24,7 +24,10 @@ app.add_middleware(
 
 app.include_router(auth.router)
 
+# Create MySQL tables (make sure this is called at least once)
 models.Base.metadata.create_all(bind=engine)
+
+#models.Base.metadata.create_all(bind=engine)
 
 def get_db():
     db = SessionLocal()
