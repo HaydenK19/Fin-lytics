@@ -3,8 +3,9 @@ import { useState, useEffect } from "react";
 
 const SettingsBlock = () => {
     return (
-        <div className="Settings-block">
-            <div className=""></div>
+        <div className="settings-content">
+            <h2>Settings</h2>
+            <p>Adjust your preferences here.</p>
         </div>
     )
 }

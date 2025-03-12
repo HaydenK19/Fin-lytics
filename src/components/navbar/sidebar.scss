@@ -154,17 +154,6 @@
     }
 }
 
-// @keyframes slideDown {
-//     0% {
-//         opacity: 0;
-//         transform: translateY(-50px);
-//     }
-//     100% {
-//         opacity: 1;
-//         transform: translateY(0px);
-//     }
-// }
-
 // profile section 
 .profile-drop {
     width: 100%;
@@ -197,26 +186,26 @@
 
 }
 
-.profile-content li {
-    text-align: center; 
-    width: 100%;
-    font-size: 1rem;
-    box-sizing: border-box;
-    // padding: 5px; 
-}   
-
-.profile-content li a {
+.profile-content button {
     width: 100%;
     text-decoration: none;
     color: white;
     padding: 10px 0; 
+    font-family: inherit;
     box-sizing: border-box;
+    border: none;
+    font-size: 1rem;
+    background-color: transparent;
+    display: flex;
+    justify-content: center;
+
     // margin: 0;
-    display: block; 
+    // display: block; 
     transition: background-color 0.2s ease-in-out;
 
     &:hover {
         background-color: #54695d;
+        cursor: pointer;
     }
 }
 
@@ -255,9 +244,18 @@
     padding: 5px;
     transition: background-color 0.3s ease;
     margin-bottom: 10px;
+    width: 120px;
 
     &:hover{
         background-color: #54695d;
+    }
+
+    .arrow {
+        transition: transform 0.3s ease;
+    }
+
+    &.open .arrow {
+        transform: rotate(180deg);
     }
 }
 
@@ -284,3 +282,27 @@
     left: 150px; 
 }
 
+.modal-overlay{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.248); 
+    z-index: 999; 
+    opacity: 0;
+    pointer-events: auto; 
+    animation: fadeInOverlay 0.5s ease-out forwards;
+}
+
+@keyframes fadeInOverlay {
+    0% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}

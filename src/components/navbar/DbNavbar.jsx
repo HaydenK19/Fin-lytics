@@ -1,14 +1,33 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCircleUser, faAngleLeft, faAngleRight } from "@fortawesome/free-solid-svg-icons";
+import { faCircleUser, faAngleLeft, faAngleRight, faAngleDown } from "@fortawesome/free-solid-svg-icons";
 import miniLogo from "../../assets/miniLogo.png";
+
+//importing modal content
+import Modal from "../popups/modal"
+import NotificationBlock from "../popups/notifs";
+import LogoutBlock from "../popups/logout";
+import SettingsBlock from "../popups/settings";
+
 import "./sidebar.scss";
 
 const user = { name: "Lilly" }; // set user name
 
 const DbNavbar = () => {
     const [isExpanded, setIsExpanded] = useState(false);
+    const [isModalOpen, setModalOpen] = useState(false);
+    const [modalContent, setModalContent] = useState(null);
+    
+    const openModal = (contentComponent) => {
+        setModalContent(() => contentComponent);
+        setModalOpen(true);
+    };
+
+    const closeModal = () => {
+        setModalContent(null);
+        setModalOpen(false);
+    };
 
     const toggleSidebar = () => {
         setIsExpanded((prev) => !prev);
@@ -23,19 +42,26 @@ const DbNavbar = () => {
                 </div>
 
                 <HamburgerContent isExpanded={isExpanded} toggleSidebar={toggleSidebar}/>
-
                 <MenuContainer isExpanded={isExpanded} toggleSidebar={toggleSidebar}/>
 
             </div>
 
-            <ProfileDropdown user={user} isExpanded={isExpanded} toggleSidebar={toggleSidebar}/>
+            <ProfileDropdown user={user} isExpanded={isExpanded} toggleSidebar={toggleSidebar} openModal={openModal} />
 
         </div>
+        
+        {isModalOpen && (
+            <div className="modal-overlay">
+                <Modal isOpen={isModalOpen} onClose={closeModal} content={modalContent ? modalContent() : null} />
+            </div>
+        )}
+        {/* render in modal */}
 
         <CollapseButton isExpanded={isExpanded} toggleSidebar={toggleSidebar}/> 
         {/* will hover outside of the bar when it is expanded, less conflict with dashboard contents */}
    
         </>
+        
     );
 };
 
@@ -44,7 +70,6 @@ const HamburgerContent = ({ isExpanded, toggleSidebar }) => (
     <button 
         className={`hamburger ${isExpanded ? "active" : ""}`} 
         onClick={toggleSidebar}
-        aria-label="Toggle Sidebar"
     >
         <div className={`bun1 ${isExpanded ? "active" : ""}`}></div>
         <div className={`bun2 ${isExpanded ? "active" : ""}`}></div>
@@ -63,22 +88,20 @@ const MenuContainer = ({ isExpanded, toggleSidebar}) => (
 );
 
 //the profile icon button logic
-const ProfileDropdown = ({ user, isExpanded, toggleSidebar }) => {
+const ProfileDropdown = ({ user, isExpanded, toggleSidebar, openModal }) => {
     const [isOpen, setIsOpen] = useState(false);
 
     // close profile content when sidebar is collapsed
     useEffect(() => {
-        //console.log("Sidebar isExpanded:", isExpanded); //debug
         if (!isExpanded) {
             setIsOpen(false);
         }
     }, [isExpanded]);
 
     const handleProfileClick = () => {
-        //console.log("Profile icon clicked. isExpanded:", isExpanded, "isOpen:", isOpen); //debug
         if (!isExpanded) {
             toggleSidebar(); // expand sidebar
-            setIsOpen(true); // open profile content
+            // setIsOpen(true); // open profile content
         } else {
             setIsOpen((prev) => !prev); // toggle profile content
         }
@@ -87,39 +110,32 @@ const ProfileDropdown = ({ user, isExpanded, toggleSidebar }) => {
     return (
         <div className="side-bot">
             <div className="profile-drop">
-                <button 
-                    className="profile-button" 
-                    onClick={handleProfileClick}
-                    aria-label="Open Profile Menu"
-                >
+                <button className="profile-button" onClick={handleProfileClick}>
                     <FontAwesomeIcon icon={faCircleUser} size="2xl" />
                     {isExpanded && <span className="profile-icon-text">{user.name}</span>}
+                    {isExpanded && isOpen && <FontAwesomeIcon icon={faAngleDown} className="arrow" />}
                 </button>
-                {isOpen && <ProfileContent user={user} isExpanded={isExpanded} />}
+                {isExpanded && isOpen && (
+                    <ProfileContent user={user} openModal={openModal} />
+                )}                {/* must hand openModal to the profile content so that it can actually open it */}
             </div>
         </div>
     );
 };
 
-//note: i removed isOpen from the profileContent so it closes upon sidebar collapse
-
 // profile content inside the button, this is now a function rather than component
-const ProfileContent = ({ user, isExpanded /*, isOpen*/ }) => {
-    if(!isExpanded /*|| !isOpen*/) return null;
+const ProfileContent = ({ user, openModal }) => { // Add openModal
+    // if (!isExpanded) return null;
 
-    return(
+    return (
         <div className="profile-content">
-            <ul>
-                {/* <li className="greeting">{user.name}</li> */}
-                {/* temp location */}
-                <li><Link to="/">Notifications</Link></li> 
-                <li><Link to="/">Settings</Link></li>
-                <li className="logout"><Link to="/">Log Out</Link></li>
-            </ul>
+            <button onClick={() => openModal(() => <NotificationBlock />)}>Notifications</button>
+            <button onClick={() => openModal(() => <SettingsBlock />)}>Settings</button>
+            <button className="logout" onClick={() => openModal(() => <LogoutBlock />)}>Log Out</button>
         </div>
     );
-   
 };
+
 
 
 //button to close sidebar
