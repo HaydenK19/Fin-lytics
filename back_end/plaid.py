@@ -8,7 +8,7 @@ from plaid import Client
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 
-# Plaid Credentials
+# Plaid Credentials (Move these to environment variables for security!)
 PLAID_CLIENT_ID = "your_plaid_client_id"
 PLAID_SECRET = "your_plaid_secret"
 PLAID_ENVIRONMENT = "sandbox"
@@ -20,7 +20,7 @@ client = Client(
     environment=PLAID_ENVIRONMENT,
 )
 
-# Encryption Key (Store this securely in production!)
+# Encryption Key (Store securely in production!)
 ENCRYPTION_KEY = Fernet.generate_key()
 cipher_suite = Fernet(ENCRYPTION_KEY)
 
@@ -44,6 +44,21 @@ class PublicTokenRequest(BaseModel):
     public_token: str
 
 app = FastAPI()
+
+@app.post("/create_link_token")
+async def create_link_token(user: dict = Depends(get_current_user)):
+    """ Generate a Plaid link token for the frontend. """
+    try:
+        response = client.LinkToken.create({
+            "user": {"client_user_id": str(user["id"])},
+            "client_name": "MyApp",
+            "products": ["auth", "transactions"],
+            "country_codes": ["US"],
+            "language": "en",
+        })
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/exchange_public_token")
 async def exchange_public_token(
@@ -110,4 +125,3 @@ async def get_transactions(
         return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
