@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect} from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleUser, faAngleLeft, faAngleRight, faAngleDown } from "@fortawesome/free-solid-svg-icons";
 import miniLogo from "../../assets/miniLogo.png";
@@ -14,10 +14,12 @@ import "./sidebar.scss";
 
 const user = { name: "Lilly" }; // set user name
 
-const DbNavbar = (setIsAuthenticated) => {
+const DbNavbar = ({setIsAuthenticated}) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isModalOpen, setModalOpen] = useState(false);
     const [modalContent, setModalContent] = useState(null);
+
+    const navigate = useNavigate();
 
     const handleLogout = () => {
         localStorage.removeItem("token"); // Remove token from localStorage
@@ -49,7 +51,7 @@ const DbNavbar = (setIsAuthenticated) => {
 
                 <HamburgerContent isExpanded={isExpanded} toggleSidebar={toggleSidebar}/>
                 <MenuContainer isExpanded={isExpanded} toggleSidebar={toggleSidebar}/>
-
+                <button className="logout" onClick={handleLogout}>Log Out</button>
             </div>
 
             <ProfileDropdown user={user} isExpanded={isExpanded} toggleSidebar={toggleSidebar} openModal={openModal} handleLogout={handleLogout}/>
@@ -137,7 +139,6 @@ const ProfileContent = ({ user, openModal }) => { // Add openModal
         <div className="profile-content">
             <button onClick={() => openModal(() => <NotificationBlock />)}>Notifications</button>
             <button onClick={() => openModal(() => <SettingsBlock />)}>Settings</button>
-            <button className="logout" onClick={handleLogout}>Log Out</button>
         </div>
     );
 };

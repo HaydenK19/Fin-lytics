@@ -6,6 +6,7 @@ import './login.scss';
 const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuthenticated }) => {
     const [isSigningUp, setIsSigningUp] = useState(true);
     const [email, setEmail] = useState("");
+    const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [number, setNumber] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -26,6 +27,7 @@ const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuth
         try {
             if (isSigningUp) {
                 const response = await axios.post("http://localhost:8000/auth/", {
+                    email: username,
                     username: email,
                     phone_number: number,
                     password: password,
@@ -48,9 +50,33 @@ const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuth
             setIsAuthenticated(true);
             navigate("/dashboard");
         } catch (error) {
-            console.error("Authentication error:", error.response ? error.response.data : error.message);
-            alert("Authentication failed. Please check your credentials and try again.");
-        }
+            console.error(
+              "Authentication error:",
+              error.response ? error.response.data : error.message
+            );
+            if (
+              error.response &&
+              error.response.status === 400 &&
+              error.response.data.detail === "User with this email already exists"
+            ) {
+              alert(
+                "User with this email already exists. Please log in or use a different email."
+              );
+            } else if (
+              error.response &&
+              error.response.status === 400 &&
+              error.response.data.detail ===
+                "User with this phone number already exists"
+            ) {
+              alert(
+                "User with this phone number already exists. Please log in or use a different phone number."
+              );
+            } else {
+              alert(
+                "Authentication failed. Please check your credentials and try again."
+              );
+            }
+          }
     };
 
     return (
@@ -63,7 +89,10 @@ const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuth
                     <form onSubmit={handleSubmit}>
                         <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
                         {isSigningUp && (
+                            <>
+                            <input type="username" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
                             <input type="tel" placeholder="Phone Number" value={number} onChange={(e) => setNumber(e.target.value)} required />
+                            </>
                         )}
                         <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
                         {isSigningUp && (
