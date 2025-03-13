@@ -8,3 +8,4 @@ class Users(Base):
     username = Column(String(255), unique=True, nullable=False)
     phone_number = Column(String(20), unique=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
+    plaid_access_token = Column(String(255), unique=True, nullable=True)
