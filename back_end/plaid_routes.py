@@ -19,8 +19,8 @@ from pydantic import BaseModel  # Import BaseModel here
 router = APIRouter()
 
 # Plaid Credentials
-PLAID_CLIENT_ID = "67c88dfbd3c90700263d0608"
-PLAID_SECRET = "5f8f736db858c8c45ca9ad990f21e3"
+PLAID_CLIENT_ID = ""
+PLAID_SECRET = ""
 PLAID_ENVIRONMENT = "sandbox"
 
 configuration = Configuration(
