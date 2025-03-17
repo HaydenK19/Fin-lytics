@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Annotated
 from fastapi import FastAPI, Depends, HTTPException, status, APIRouter
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 from starlette import status
 from database import SessionLocal
@@ -135,5 +135,29 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                             detail='Could not validate user')
     
+#Lilly: Trying to make endpoint to call for updating user info via account settings
+class UpdateUserRequest(BaseModel):
+    email: str
+    phone_number: str
+    password: str
 
+@router.put("/update", status_code=status.HTTP_200_OK)
+async def update_user(user: Annotated[dict, Depends(get_current_user)], 
+                      db: db_dependency,
+                      update_user_request: UpdateUserRequest):
+        
+        user_model = db.query(Users).filter(Users.id == user["id"]).first()
+        if not user_model:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, 
+                                detail="User not found")
+
+        if update_user_request.email:
+            user_model.email = update_user_request.email
+        if update_user_request.phone_number:
+            user_model.phone_number = update_user_request.phone_number
+        if update_user_request.password:
+            user_model.hashed_password = bcrypt.hash(update_user_request.password) 
+
+        db.commit()
+        return{"message": "User updated successfully"}
 
