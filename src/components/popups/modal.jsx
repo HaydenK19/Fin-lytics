@@ -11,7 +11,10 @@ const Modal = ({ isOpen, onClose, content }) => {
           <button className="close-btn" onClick={onClose}>
             x
           </button>
-          {content}
+          
+          <div className='modal-inner-content'>
+            {content}
+          </div>
         </div>
       </div>
     );
