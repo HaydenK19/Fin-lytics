@@ -4,7 +4,6 @@ import ToggleButton from "./togglebutton";
 import axios from "axios";
 //comment out to turn off redirections
 import api from "../../../api";
-
 import plaidLogo from "../../../assets/plaidlogo.png";
 import "./settings.scss";
 
@@ -40,27 +39,7 @@ const SettingsBlock = () => {
   }, []);
 
   // Fetch link token for Plaid Link flow
-  useEffect(() => {
-    const fetchLinkToken = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const response = await api.post(
-          "http://localhost:8000/create_link_token",
-          {},
-          {
-            headers: { Authorization: `Bearer ${token}` },
-            withCredentials: true,
-            });
-            setIsLoggedIn(true);
-        } catch (error) {
-            setIsLoggedIn(false);
-        }
-        };
 
-        checkPlaidStatus();
-    }, []);
-
-    
     useEffect(() => {
         const fetchLinkToken = async () => {
             try {
