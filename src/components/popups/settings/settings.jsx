@@ -18,6 +18,25 @@ const SettingsBlock = () => {
         phone_number: "",
     });
 
+    // Merge Item: Check if user is already linked to Plaid
+    useEffect(() => {
+        const checkPlaidStatus = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            await axios.get("http://localhost:8000/accounts", {
+            headers: { Authorization: `Bearer ${token}` },
+            withCredentials: true,
+            });
+            setIsLoggedIn(true);
+        } catch (error) {
+            setIsLoggedIn(false);
+        }
+        };
+
+        checkPlaidStatus();
+    }, []);
+
+    
     useEffect(() => {
         const fetchLinkToken = async () => {
             try {
@@ -32,7 +51,10 @@ const SettingsBlock = () => {
                 );
                 setLinkToken(response.data.link_token);
             } catch (error) {
-                console.error("Error fetching Plaid link token:", error.response ? error.response.data : error);
+                console.error(
+                    "Error fetching Plaid link token:", 
+                    error.response ? error.response.data : error
+                );
             }
         };
 
@@ -73,20 +95,24 @@ const SettingsBlock = () => {
         fetchUserInfo();
     }, []);
 
-    const onSuccess = useCallback(async (publicToken) => {
+    // Handle successful Plaid Link connection
+    const onSuccess = useCallback(async (publicToken, metadata) => {
         try {
-            const token = localStorage.getItem("token");
-            await axios.post(
-                "http://localhost:8000/exchange_public_token",
-                { public_token: publicToken },
-                {
-                    headers: { Authorization: `Bearer ${token}` },
-                    withCredentials: true,
-                }
-            );
-            setIsLoggedIn(true);
+        const token = localStorage.getItem("token");
+        await axios.post(
+            "http://localhost:8000/exchange_public_token",
+            { public_token: publicToken },
+            {
+            headers: { Authorization: `Bearer ${token}` },
+            withCredentials: true,
+            }
+        );
+        setIsLoggedIn(true);
         } catch (error) {
-            console.error("Error exchanging public token:", error.response ? error.response.data : error);
+        console.error(
+            "Error exchanging public token:",
+            error.response ? error.response.data : error
+        );
         }
     }, []);
 
@@ -148,7 +174,7 @@ const SettingsBlock = () => {
             <h2>Settings</h2>
             <AccountSettings userInfo={userInfo} onUpdateUser={handleUpdateUser} />
             <NotificationSettings settings={settings} onToggleChange={handleToggleChange} />
-            <FinanceSettings isLoggedIn={isLoggedIn} linkToken={linkToken} open={open} ready={ready} />
+            <FinanceSettings isLoggedIn={isLoggedIn} linkToken={linkToken} open={open} ready={ready} setIsLoggedIn={setIsLoggedIn} />
         </div>
     );
 };
@@ -285,16 +311,36 @@ const NotificationSettings = ({ settings, onToggleChange }) => {
     );
 };
 
-const FinanceSettings = ({ isLoggedIn, linkToken, open, ready }) => {
+const FinanceSettings = ({ isLoggedIn, linkToken, open, ready, setIsLoggedIn }) => {
+    // Merge Item: Function to call the unlink endpoint
+    const handleUnlink = async () => {
+        try {
+        const token = localStorage.getItem("token");
+        await axios.delete("http://localhost:8000/unlink", {
+            headers: { Authorization: `Bearer ${token}` },
+            withCredentials: true,
+        });
+        setIsLoggedIn(false);
+        } catch (error) {
+        console.error(
+            "Error unlinking Plaid account:",
+            error.response ? error.response.data : error
+        );
+        }
+    };
+    
     return (
         <div className="settings-section">
-            <h3>Connect your Bank Account</h3>
-            {/* <p className="mini-text">{isLoggedIn ? "Your bank is connected via Plaid." : 
-            "Securely link your bank account using Plaid to enable financial tracking."}</p> */}
-            <button onClick={() => open()} disabled={!ready} className="plaid">
-                <img src={plaidLogo} alt="Plaid Logo" className="plaid-logo"/>
-                {isLoggedIn ? "Reconnect Plaid" : "Log into Plaid"}
-            </button>
-        </div>
+        <h3>Connect your Bank Account</h3>
+        {/* <p>{isLoggedIn ? "Logged into Plaid" : "Not logged into Plaid"}</p> */}
+        <button
+            onClick={isLoggedIn ? handleUnlink : () => open()}
+            disabled={!ready && !isLoggedIn}
+            className="plaid"
+        >
+            <img src={plaidLogo} alt="Plaid Logo" className="plaid-logo" />
+            {isLoggedIn ? "Unlink Plaid" : "Log into Plaid"}
+        </button>
+    </div>
     );
 };

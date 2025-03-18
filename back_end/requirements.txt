@@ -7,3 +7,4 @@ sqlalchemy
 plaid-python
 python-dotenv
 pymysql
+polygon-api-client
