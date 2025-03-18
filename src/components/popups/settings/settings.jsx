@@ -2,6 +2,9 @@ import { useEffect, useState, useCallback } from "react";
 import { usePlaidLink } from "react-plaid-link";
 import ToggleButton from "./togglebutton";
 import axios from "axios";
+//comment out to turn off redirections
+import api from "../../../api";
+
 
 const SettingsBlock = () => {
   const [linkToken, setLinkToken] = useState(null);
@@ -12,7 +15,7 @@ const SettingsBlock = () => {
     const checkPlaidStatus = async () => {
       try {
         const token = localStorage.getItem("token");
-        await axios.get("http://localhost:8000/accounts", {
+        await api.get("http://localhost:8000/accounts", {
           headers: { Authorization: `Bearer ${token}` },
           withCredentials: true,
         });
@@ -30,7 +33,7 @@ const SettingsBlock = () => {
     const fetchLinkToken = async () => {
       try {
         const token = localStorage.getItem("token");
-        const response = await axios.post(
+        const response = await api.post(
           "http://localhost:8000/create_link_token",
           {},
           {

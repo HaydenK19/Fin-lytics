@@ -64,7 +64,7 @@ class PublicTokenRequest(BaseModel):
 async def create_link_token(user: dict = Depends(get_current_user)):
     """Generate a Plaid link token for the frontend."""
     try:
-        print("Authenticated User:", user)  # Debugging
+        #print("Authenticated User:", user)  # Debugging
 
         request_data = {
             "client_id": PLAID_CLIENT_ID,
@@ -90,7 +90,7 @@ async def exchange_public_token(
 ):
     """Exchange a public token for an access token and store it securely."""
     try:
-        print("Received Public Token:", request.public_token)  # Debug log
+        #print("Received Public Token:", request.public_token)  # Debug log
 
         exchange_request = ItemPublicTokenExchangeRequest(
             client_id=PLAID_CLIENT_ID,
