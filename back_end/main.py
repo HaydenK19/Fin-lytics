@@ -54,7 +54,6 @@ async def user(user: user_dependency, db: db_dependency):
         raise HTTPException(status_code=401, detail="Authentication Failed")
     return {"User": user}
 
-
 # Big Picture of Auth
 # User registers -> Password is hashed and stored
 # User logs in -> if password is correct, they receive a JWT token

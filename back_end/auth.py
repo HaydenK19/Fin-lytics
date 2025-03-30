@@ -25,6 +25,8 @@ oauth2_bearer = OAuth2PasswordBearer(tokenUrl="auth/token") # api endpoint for t
 
 # Pydantic models
 class CreateUserRequest(BaseModel):
+    first_name: str
+    last_name: str
     email: str
     username: str
     phone_number: str
@@ -66,6 +68,8 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
 
     # Create the user if they don't exist
     create_user_model = Users(
+        first_name=create_user_request.first_name,
+        last_name=create_user_request.last_name,
         email=create_user_request.email,
         username=create_user_request.username,
         phone_number=create_user_request.phone_number,
@@ -119,22 +123,32 @@ def create_access_token(username: str, user_id: int, expires_delta: timedelta):
     encode.update({'exp': expires})
     return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
 
-# Decode the token using SECRET_KEY and extract user details
-# If toke is invalid or expired, error that jawn
-# If valid, return user details
-async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
+async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)], db: db_dependency):
     try:
+        # Decode the JWT token
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get('sub')
         user_id: int = payload.get('id')
+
         if username is None or user_id is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, 
-                                detail='Could not validate user')
-        return {'username': username, 'id': user_id}
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user')
+
+        # Fetch user details from the database
+        user = db.query(Users).filter(Users.id == user_id).first()
+        if user is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+        # Return the user details
+        return {
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'username': user.username,
+            'id': user.id
+        }
     except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                            detail='Could not validate user')
-    
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user')
+
+
 #Lilly: Trying to make endpoint to call for updating user info via account settings
 class UpdateUserRequest(BaseModel):
     email: str

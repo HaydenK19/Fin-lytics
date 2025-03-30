@@ -5,6 +5,8 @@ import './login.scss';
 
 const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuthenticated }) => {
     const [isSigningUp, setIsSigningUp] = useState(true);
+    const [firstName, setFirstName] = useState("");
+    const [lastName, setLastName] = useState("");
     const [email, setEmail] = useState("");
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
@@ -27,8 +29,10 @@ const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuth
         try {
             if (isSigningUp) {
                 const response = await axios.post("http://localhost:8000/auth/", {
-                    email: username,
-                    username: email,
+                    first_name: firstName,
+                    last_name: lastName,
+                    email: email,
+                    username: username,
                     phone_number: number,
                     password: password,
                 });
@@ -39,7 +43,7 @@ const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuth
             const loginResponse = await axios.post(
                 "http://localhost:8000/auth/token",
                 new URLSearchParams({
-                    username: email,
+                    username: username,
                     password: password,
                 }),
                 { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
@@ -87,10 +91,19 @@ const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuth
                 
                 <div className={`login-container ${isSigningUp ? 'expanded' : 'collapsed'}`}>
                     <form onSubmit={handleSubmit}>
-                        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+
+                        {!isSigningUp && (
+                          <>
+                          <input type="username" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+                          </>
+                        )}
+
                         {isSigningUp && (
                             <>
+                            <input type="text" placeholder="First Name" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+                            <input type="text" placeholder="Last Name" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
                             <input type="username" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+                            <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
                             <input type="tel" placeholder="Phone Number" value={number} onChange={(e) => setNumber(e.target.value)} required />
                             </>
                         )}
