@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import Annotated
 from fastapi import FastAPI, Depends, HTTPException, status, APIRouter
 from pydantic import BaseModel, EmailStr
@@ -9,6 +9,7 @@ from models import Users, Settings
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
+from email_service import send_email
 
 router = APIRouter(
     prefix='/auth',
@@ -66,6 +67,9 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
             detail="User with this phone number already exists",
         )
 
+    # Generates verification token
+    verification_token = generate_verification_token(create_user_request.email)
+
     # Create the user if they don't exist
     create_user_model = Users(
         first_name=create_user_request.first_name,
@@ -74,10 +78,16 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
         username=create_user_request.username,
         phone_number=create_user_request.phone_number,
         hashed_password=bcrypt.hash(create_user_request.password),
+        verification_token=verification_token
     )
 
     db.add(create_user_model)
     db.commit()
+    
+    #Sends verfication email
+    verification_link = f"http://localhost:8000/auth/verify_email?token={verification_token}"
+    email_content = f"Click the link to verify your email: {verification_link}"
+    send_email(create_user_request.email, "Verify your email", email_content)
 
     # Create default settings for the user (with all notifications set to False)
     user_settings = Settings(
@@ -149,6 +159,10 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)], db: db
         if user is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
+        # Check if the user's email is verified
+        if not user.is_verified:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Email not verified")
+
         # Return the user details
         return {
             'first_name': user.first_name,
@@ -186,3 +200,35 @@ async def update_user(user: Annotated[dict, Depends(get_current_user)],
         db.commit()
         return{"message": "User updated successfully"}
 
+#Generates a verification token
+def generate_verification_token(email: str) -> str:
+    expires_delta = timedelta(hours=24)
+    encode = {'sub': email, 'exp': datetime.now(UTC) + expires_delta}
+    return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
+
+#Verifies the verification token
+def verify_verification_token(token: str) -> str:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get('sub')
+        if email is None:
+            raise HTTPException(status_code=400, detail="Invalid token")
+        return email
+    except JWTError:
+        raise HTTPException(status_code=400, detail="Invalid token")
+    
+#Endpoint to verify the email
+@router.get("/verify_email")
+async def verify_email(token: str, db: db_dependency):
+    email = verify_verification_token(token)
+    user = db.query(Users).filter(Users.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.is_verified:
+        raise HTTPException(status_code=400, detail="Email already verified")
+    
+    user.is_verified = True
+    user.verification_token = None
+    db.commit()
+    
+    return {"message": "Email verified successfully"}
