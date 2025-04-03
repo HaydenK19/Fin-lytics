@@ -16,6 +16,7 @@ const SettingsBlock = () => {
         push_notifications: false,
     });
     const [userInfo, setUserInfo] = useState({
+        username:"",
         email: "",
         phone_number: "",
     });
@@ -124,7 +125,7 @@ const SettingsBlock = () => {
             const token = localStorage.getItem("token");
             const updatedSettings = { ...settings, [name]: value };
             setSettings(updatedSettings);
-            await axios.post(
+            await axios.put(
                 "http://localhost:8000/user_settings/",
                 updatedSettings,
                 {
