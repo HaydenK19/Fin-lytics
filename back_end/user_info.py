@@ -30,7 +30,7 @@ class UpdateUserInfo(BaseModel):
     password: str
 
 @router.get("/", status_code=status.HTTP_200_OK)
-async def get_user_info(user: user_dependency, db: db_dependency):
+async def get_user_info(user: user_dependency, db: db_dependency): 
     user_record = db.query(Users).filter(Users.username == user["username"]).first()
 
     if not user_record:

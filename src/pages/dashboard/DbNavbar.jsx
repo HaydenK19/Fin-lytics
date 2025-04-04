@@ -2,26 +2,28 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./DbNav.scss";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCircleUser, faAngleDown } from "@fortawesome/free-solid-svg-icons";
+import { faCircleUser, faBell } from "@fortawesome/free-solid-svg-icons";
 import finLogo from "../../assets/finLogo.png";
 import axios from "axios";
 
 import Modal from "../../components/popups/modal";
 import NotificationBlock from "../../components/popups/notifs";
 import SettingsBlock from "../../components/popups/settings/settings";
+import LogoutBlock from "../../components/popups/logout";
 
 const DbNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
     const [user, setUser] = useState(null);
-    const [isOpen, setIsOpen] = useState(false); // Controls profile dropdown visibility
+    const [isOpen, setIsOpen] = useState(false); 
+    const [isNotifOpen, setIsNotifOpen] = useState(false);
     const [isModalOpen, setModalOpen] = useState(false);
     const [modalContent, setModalContent] = useState(null);
     const navigate = useNavigate();
 
-    const handleLogout = () => {
-        localStorage.removeItem("token");
-        setIsAuthenticated(false);
-        navigate("/");
-    };
+    // const handleLogout = () => {
+    //     localStorage.removeItem("token");
+    //     setIsAuthenticated(false);
+    //     navigate("/");
+    // };
 
     const getUser = async () => {
         try {
@@ -31,6 +33,8 @@ const DbNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
                     Authorization: `Bearer ${token}`,
                 },
             });
+
+            console.log("Response:", response.data); // debug log, for some reason the response is null for f/l name
 
             const { first_name, last_name, username, id } = response.data.User;
             setUser({ firstName: first_name, lastName: last_name, username, id });
@@ -47,8 +51,14 @@ const DbNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
         }
     }, [isAuthenticated]);
 
-    const toggleDropdown = () => {
+    const toggleProfileDropdown = () => {
         setIsOpen((prev) => !prev);
+        setIsNotifOpen(false); 
+    };
+
+    const toggleNotifDropdown = () => {
+        setIsNotifOpen((prev) => !prev);
+        setIsOpen(false);
     };
 
     const openModal = (contentComponent) => {
@@ -69,12 +79,21 @@ const DbNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
                 </div>
                 <div className="nav-mid">
                     <ul>
-                        hello
+                        {/* hello */}
                     </ul>
                 </div>
                 <div className="nav-right">
+                    <div className="notif-container">
+                        <button className="notifbtn" onClick={toggleNotifDropdown}>
+                            <FontAwesomeIcon icon={faBell} size="2xl" />
+                        </button>
+                        <div className="notif-content">
+                            {isNotifOpen && <NotificationBlock />}
+                        </div>
+                    </div>
+
                     <div className="profilebtn-container">
-                        <button className="profilebtn" onClick={toggleDropdown}>
+                        <button className="profilebtn" onClick={toggleProfileDropdown}>
                             {/* {user && <span className="profile-icon-text">{user.firstName}</span>} */}
                             <FontAwesomeIcon icon={faCircleUser} size="2xl" />
                         </button>
@@ -82,7 +101,8 @@ const DbNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
                             <ProfileContent
                                 user={user}
                                 openModal={openModal}
-                                handleLogout={handleLogout}
+                                setIsAuthenticated={setIsAuthenticated}
+                                navigate={navigate}
                             />
                         )}
                     </div>
@@ -93,7 +113,7 @@ const DbNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
                     <div className="modal-content">
                         {modalContent && modalContent()}
                         <button className="close-modal" onClick={closeModal}>
-                            Close
+                            x
                         </button>
                     </div>
                 </div>
@@ -102,12 +122,15 @@ const DbNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
     );
 };
 
-const ProfileContent = ({ user, openModal, handleLogout }) => {
+const ProfileContent = ({ user, openModal, setIsAuthenticated, navigate }) => {
     return (
         <div className="profile-content">
-            <button onClick={() => openModal(() => <NotificationBlock />)}>Notifications</button>
+            <p className="greeting">
+                {user ? `Welcome, ${user.firstName}!` : "Welcome!"}
+            </p>
+            {/* <button onClick={() => openModal(() => <NotificationBlock />)}>Notifications</button> */}
             <button onClick={() => openModal(() => <SettingsBlock />)}>Settings</button>
-            <button className="logout" onClick={handleLogout}>Log Out</button>
+            <button onClick={() => openModal(() => <LogoutBlock setIsAuthenticated={setIsAuthenticated} navigate={navigate} />)}>Log Out</button>
         </div>
     );
 };

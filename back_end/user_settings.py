@@ -64,7 +64,7 @@ async def update_user_settings(
         settings.push_notifications = settings_update.push_notifications
 
     db.commit()
-    db.refresh(settings)  # Ensure the updated data is fetched
+    db.refresh(settings)  # ensure the updated data is fetched
 
     return {
         "email_notifications": settings.email_notifications,
