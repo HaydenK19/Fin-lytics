@@ -1,0 +1,66 @@
+.rbc-toolbar button{
+    font-family: Quicksand, sans-serif;
+    
+    .rbc-btn-group{
+        font-family: Quicksand, sans-serif;
+        font-family: inherit;
+    } 
+}
+
+.rbc-header button{
+    font-family: Quicksand, sans-serif;
+    font-family: inherit;
+}
+
+.rbc-time-gutter {
+    display: none;
+}
+
+.rbc-time-header-gutter {
+    display: none;
+}
+
+.rbc-time-header-content {
+    border: none; 
+    height: auto;
+    padding: 0 ;
+    margin: 0;
+    // font-family: Quicksand, sans-serif;
+
+    // background-color: bisque;
+}
+
+.rbc-time-header.rbc-overflowing{
+    font-family: Quicksand, sans-serif;
+}
+
+.rbc-time-header {
+    border: none;
+    height: auto;
+    padding: 0 ;
+    margin: 0;
+    font-family: Quicksand, sans-serif;
+    // display: none;
+}
+
+.rbc-day-bg {
+    display: none;
+    height: 0%;
+  }
+
+.rbc-time-content {
+    border: none;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    // background-color: aqua;
+}
+
+.rbc-day-slot {
+    // background-color: rgb(54, 158, 111);
+    border: none;
+    flex: 1;
+}
+
+.rbc-allday-cell{
+   display: none;
+}
