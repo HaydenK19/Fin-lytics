@@ -7,6 +7,10 @@
     } 
 }
 
+.rbc-current-time-indicator{
+    display: none;
+}
+
 .rbc-header button{
     font-family: Quicksand, sans-serif;
     font-family: inherit;
@@ -14,10 +18,12 @@
 
 .rbc-time-gutter {
     display: none;
+    width: 0 !important; //it will override ALL previous styling rules for that specific property on that element
 }
 
 .rbc-time-header-gutter {
     display: none;
+    width: 0 !important;
 }
 
 .rbc-time-header-content {
@@ -40,17 +46,19 @@
     padding: 0 ;
     margin: 0;
     font-family: Quicksand, sans-serif;
+    grid-template-columns: 1fr !important; 
+    margin-left: 0 !important; 
     // display: none;
 }
 
 .rbc-day-bg {
-    display: none;
-    height: 0%;
+    // display: none;
+    // height: 0%;
   }
 
 .rbc-time-content {
     border: none;
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;;
     grid-template-rows: 1fr;
     // background-color: aqua;
 }
@@ -59,8 +67,25 @@
     // background-color: rgb(54, 158, 111);
     border: none;
     flex: 1;
+    position: relative;
+    padding: 0 !important;
+    
+}
+
+.rbc-date-cell{
+    font-family: Quicksand, sans-serif;
 }
 
 .rbc-allday-cell{
    display: none;
+}
+
+.rbc-event-content{
+    background-color: inherit !important; 
+}
+
+.rbc-event{
+    background-color: transparent !important;
+    border: none !important; 
+    padding: 0 !important;
 }

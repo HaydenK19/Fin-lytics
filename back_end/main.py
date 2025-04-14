@@ -12,7 +12,6 @@ import user_settings
 import user_categories
 import stock_routes
 import pie_chart
-# import notification (lilly's test of notification api, removed idea)
 
 app = FastAPI()
 

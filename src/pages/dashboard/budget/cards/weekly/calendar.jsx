@@ -23,9 +23,9 @@ const localizer = dateFnsLocalizer({
 });
 
 const formats = {
-  timeGutterFormat: () => "", // Removes time from the gutter
-  eventTimeRangeFormat: () => "", // Removes time from event display
-  agendaTimeRangeFormat: () => "", // Removes time from agenda view
+  timeGutterFormat: () => "",
+  eventTimeRangeFormat: () => "", 
+  agendaTimeRangeFormat: () => "", 
 };
 
 const CalendarCard = () => {
@@ -37,8 +37,8 @@ const CalendarCard = () => {
         {
           title: "Groceries",
           category: "Food",
-          start: new Date(2025, 4, 6), 
-          end: new Date(2025, 4, 6),
+          start: new Date(2025, 3, 14, 9, 0), 
+          end: new Date(2025, 3, 14, 10, 0),
           id: 1,
         },
         {
@@ -63,17 +63,20 @@ const CalendarCard = () => {
     Other: "#FFD700", // gold
   };
 
-  // Custom event component
   const EventComponent = ({ event }) => {
-    const backgroundColor = categoryColors[event.category] || "#D3D3D3"; // Default to light gray
+    const backgroundColor = categoryColors[event.category] || "#D3D3D3"; 
     return (
       <div
         style={{
           backgroundColor,
           color: "#000",
-          padding: "5px",
-          borderRadius: "5px",
-          marginBottom: "5px",
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          borderRadius: "5px", 
+          boxSizing: "border-box", 
           fontSize: "0.9rem",
         }}
       >
@@ -100,13 +103,13 @@ const CalendarCard = () => {
         endAccessor="end"
         defaultView="week"
         views={["week", "month"]}
-        formats={formats} // Pass the formats object here
+        formats={formats} 
         style={{ height: "100%" }}
-        showMultiDayTimes={false} // Hides the time slots in the multi-day view
+        showMultiDayTimes={false} 
         min={new Date(2025, 3, 6, 8, 0)}
         max={new Date(2025, 3, 6, 16, 0)}
         components={{
-          event: EventComponent, // Custom event rendering
+          event: EventComponent, 
           toolbar: CustomToolbar,
         }}
       />

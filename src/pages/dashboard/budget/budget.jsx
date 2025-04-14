@@ -1,5 +1,7 @@
 import "./budget.scss"
 import React from "react";
+import { useEffect, useState } from "react";
+import axios from "axios";
 // import QuickAccess from "./cards/quickaccess.jsx" removed since logic will probably be simple enough to leave in parent
 import WeeklyOverview from "./cards/weekly/weekly.jsx"
 import VisualCard from "./cards/visualdata.jsx"
@@ -60,14 +62,44 @@ const QuickAccess = () => { //need to open modal for each button
     );
 }
 
-const MyAccounts = () => { //should each card have a button to edit content?
+const MyAccounts = () => {
+    const [balances, setBalances] = useState({ debit: 0, credit: 0, cash: 0 });
+
+    useEffect(() => {
+        const fetchBalances = async () => {
+            try {
+                const token = localStorage.getItem("token");
+                const response = await axios.get("http://localhost:8000/user_balances/", {
+                    headers: { Authorization: `Bearer ${token}` },
+                    withCredentials: true,
+                });
+
+                const { plaid_balances, cash_balance } = response.data;
+
+                const debit = plaid_balances
+                    .filter(account => account.type === "depository")
+                    .reduce((sum, account) => sum + (account.balance || 0), 0);
+
+                const credit = plaid_balances
+                    .filter(account => account.type === "credit")
+                    .reduce((sum, account) => sum + (account.balance || 0), 0);
+
+                setBalances({ debit, credit, cash: cash_balance });
+            } catch (error) {
+                console.error("Error fetching user balances:", error.response ? error.response.data : error);
+            }
+        };
+
+        fetchBalances();
+    }, []);
+
     return (
         <div className="card-content">
             <div className="card-body">
-                <li>Debit: $</li>
-                <li>Credit: $</li>
-                <li>Cash: $</li>
+                <li>Debit: ${balances.debit.toFixed(2)}</li>
+                <li>Credit: ${balances.credit.toFixed(2)}</li>
+                <li>Cash: ${balances.cash.toFixed(2)}</li>
             </div>
         </div>
     );
-}
+};
