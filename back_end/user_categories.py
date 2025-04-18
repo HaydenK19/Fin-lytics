@@ -65,13 +65,7 @@ def create_user_category(user_id: int, data: UserCategoryCreate, db: Session):
     db.commit()
     db.refresh(new_category)
 
-    return {
-        "message": "Category created successfully",
-        "id": new_category.id,
-        "name": new_category.name,
-        "color": new_category.color,
-        "weekly_limit": new_category.weekly_limit
-    }
+    return new_category
 
 def update_user_category(category_id: int, data: UserCategoryUpdate, db: Session):
     category = db.query(User_Categories).filter(User_Categories.id == category_id).first()
