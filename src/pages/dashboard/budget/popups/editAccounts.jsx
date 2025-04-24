@@ -62,22 +62,28 @@ const EditAccounts = ({ onClose }) => {
                 </button>
                 <h2>Edit Accounts</h2>
                 <p>View and manage your account balances.</p>
-                <ul>
-                    <li>Debit (Savings & Checking): ${balances.debit.toFixed(2)}</li>
-                    <li>Credit: ${balances.credit.toFixed(2)}</li>
-                    <li>Cash: ${balances.cash.toFixed(2)}</li>
-                </ul>
-                <form onSubmit={handleCashUpdate}>
-                    <label>
-                        Update Cash Balance:
-                        <input
-                            type="number"
-                            value={cashInput}
-                            onChange={(e) => setCashInput(parseFloat(e.target.value) || 0)}
-                        />
-                    </label>
-                    <button type="submit">Update</button>
-                </form>
+                <div className="account-list">
+                    <ul>
+                        <li>Debit (Savings & Checking): ${balances.debit.toFixed(2)}</li>
+                        <li>Credit: ${balances.credit.toFixed(2)}</li>
+                        <li>Cash: ${balances.cash.toFixed(2)}</li>
+                    </ul>
+                </div>
+                
+                <div className="update-cash">
+                    <form onSubmit={handleCashUpdate}>
+                        <label>
+                            Update Cash Balance:
+                            <input
+                                type="number"
+                                value={cashInput}
+                                onChange={(e) => setCashInput(parseFloat(e.target.value) || 0)}
+                            />
+                        </label>
+                        <button type="submit">Update</button>
+                    </form>
+                </div>
+                
             </div>
         </div>
     );

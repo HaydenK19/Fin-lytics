@@ -89,10 +89,9 @@ const VisualCard = () => {
     style={{
         display: "flex",
         flexDirection: "column",
-        // alignItems: "center",
-        // justifyContent: "center",
-        width: "100%",
+        width: "75%",
         height: "auto",
+        margin: "0 auto",
     }}
     >
         {pieChartData ? (
