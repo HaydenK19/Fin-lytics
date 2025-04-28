@@ -14,6 +14,7 @@ class Users(Base):
     phone_number = Column(String(20), unique=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
     plaid_access_token = Column(String(255), unique=True, nullable=True)
+    plaid_brokerage_access_token = Column(String(255), unique=True, nullable=True)
     is_verified = Column(Boolean, default=False)
     verification_token = Column(String(255), nullable=True)
     bank_accounts = relationship(
@@ -23,6 +24,11 @@ class Users(Base):
     )
     categories = relationship(
         "User_Categories",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+    investments = relationship(
+        "Plaid_Investment",
         back_populates="user",
         cascade="all, delete-orphan"
     )
@@ -115,3 +121,45 @@ class Transaction_Category_Link(Base):
     __table_args__ = (
         UniqueConstraint('transaction_id', name='_transaction_id_uc'),
     )
+
+
+class Plaid_Investment(Base):
+    __tablename__ = "Plaid_Investment"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("Users.id", ondelete="CASCADE"), nullable=False)
+    account_id = Column(String(100), unique=True, nullable=False)
+    name = Column(String(255))
+    type = Column(String(50))
+    subtype = Column(String(50))
+    current_balance = Column(Float)
+    available_balance = Column(Float)
+    currency = Column(String(10))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    user = relationship("Users", back_populates="investments")
+    holdings = relationship(
+        "Plaid_Investment_Holding",
+        back_populates="investment_account",
+        cascade="all, delete-orphan"
+    )
+
+
+class Plaid_Investment_Holding(Base):
+    __tablename__ = "Plaid_Investment_Holding"
+
+    id = Column(Integer, primary_key=True, index=True)
+    holding_id = Column(String(100), unique=True, nullable=False)
+    account_id = Column(
+        String(100),
+        ForeignKey("Plaid_Investment.account_id", ondelete="CASCADE"),
+        nullable=False
+    )
+    security_id = Column(String(100))
+    symbol = Column(String(20))
+    name = Column(String(255))
+    quantity = Column(Float)
+    price = Column(Float)
+    value = Column(Float)
+    currency = Column(String(10))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    investment_account = relationship("Plaid_Investment", back_populates="holdings")
