@@ -104,47 +104,5 @@ async def websocket_custombars(websocket: WebSocket):
 
 
 
-        @router.get("/news/{ticker}", status_code=status.HTTP_200_OK)
-async def get_ticker_news(
-    ticker: str,
-    limit: Optional[int] = 10,
-    order: Optional[str] = "desc",
-    published_utc: Optional[str] = None
-):
-    """
-    Retrieve recent news articles for a specific stock ticker.
-    Optional query parameters:
-      - limit: number of articles to return (default 10)
-      - order: sort order 'asc' or 'desc' (default 'desc')
-      - published_utc: filter articles published on or after this timestamp (ISO format)
-    """
-    try:
-        if published_utc:
-            news_iter = polygonapi.list_ticker_news(
-                ticker,
-                limit=limit,
-                order=order,
-                published_utc=published_utc
-            )
-        else:
-            news_iter = polygonapi.list_ticker_news(
-                ticker,
-                limit=limit,
-                order=order
-            )
-        # Convert Pydantic models to dicts
-        news_list = [n.dict() for n in news_iter if isinstance(n, TickerNews)]
-        return news_list
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 
-
-@router.post("/predict/5", status_code=200)
-def predict(req: PredictionRequest):
-    if model is None:
-        raise HTTPException(status_code=500, detail="Model not loaded")
-    X = [[req.feature_a, req.feature_b, req.feature_c]]
-    preds = model.predict(X)
-
-    return {"prediction": preds.tolist()}
