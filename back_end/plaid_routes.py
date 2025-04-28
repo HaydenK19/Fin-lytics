@@ -1,6 +1,6 @@
 import os
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from cryptography.fernet import Fernet
@@ -268,6 +268,114 @@ async def get_accounts(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/refresh_bank_data", status_code=status.HTTP_200_OK)
+async def refresh_bank_data(
+    db: Session = Depends(get_db), 
+    user: dict = Depends(get_current_user)
+):
+    """
+    Refreshes the user's bank account and transaction data from Plaid.
+    This endpoint will:
+      - Re-fetch and update bank account information in Plaid_Bank_Account.
+      - Re-fetch and insert new transactions in Plaid_Transactions (for the past 30 days).
+    """
+    db_user = db.query(Users).filter(Users.id == user["id"]).first()
+    if not db_user or not db_user.plaid_access_token:
+        raise HTTPException(status_code=400, detail="Plaid account not linked.")
+
+    # Decrypt the stored Plaid token
+    decrypted_access_token = decrypt_token(db_user.plaid_access_token)
+
+    # Refresh Bank Accounts
+    try:
+        accounts_request = AccountsGetRequest(
+            client_id=PLAID_CLIENT_ID,
+            secret=PLAID_SECRET,
+            access_token=decrypted_access_token
+        )
+        accounts_response = client.accounts_get(accounts_request)
+        accounts_data = accounts_response.to_dict().get("accounts", [])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching accounts: {str(e)}")
+
+    for acc in accounts_data:
+        # Upsert account record based on the unique account_id
+        existing_account = (
+            db.query(Plaid_Bank_Account)
+            .filter(Plaid_Bank_Account.account_id == acc["account_id"])
+            .first()
+        )
+        if existing_account:
+            # Update account details
+            existing_account.name = acc["name"]
+            existing_account.type = acc["type"]
+            existing_account.subtype = acc.get("subtype")
+            existing_account.current_balance = acc["balances"].get("current")
+            existing_account.available_balance = acc["balances"].get("available")
+            existing_account.currency = acc["balances"].get("iso_currency_code")
+        else:
+            new_account = Plaid_Bank_Account(
+                user_id=user["id"],
+                account_id=acc["account_id"],
+                name=acc["name"],
+                type=acc["type"],
+                subtype=acc.get("subtype"),
+                current_balance=acc["balances"].get("current"),
+                available_balance=acc["balances"].get("available"),
+                currency=acc["balances"].get("iso_currency_code")
+            )
+            db.add(new_account)
+    db.commit()
+
+    # Refresh Transactions (for the past 30 days)
+    try:
+        end_date = datetime.now().date()
+        start_date = (datetime.now() - timedelta(days=30)).date()
+        transactions_request = TransactionsGetRequest(
+            client_id=PLAID_CLIENT_ID,
+            secret=PLAID_SECRET,
+            access_token=decrypted_access_token,
+            start_date=start_date,
+            end_date=end_date
+        )
+        transactions_response = client.transactions_get(transactions_request)
+        transactions_data = transactions_response.to_dict().get("transactions", [])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching transactions: {str(e)}")
+
+    for t in transactions_data:
+        existing_tx = (
+            db.query(Plaid_Transactions)
+            .filter(Plaid_Transactions.transaction_id == t["transaction_id"])
+            .first()
+        )
+        if existing_tx:
+            # Optionally update the transaction if necessary.
+            continue
+
+        # Parse the transaction date if it is a string
+        try:
+            if isinstance(t["date"], str):
+                tx_date = datetime.strptime(t["date"], "%Y-%m-%d").date()
+            else:
+                tx_date = t["date"]
+        except Exception:
+            tx_date = None
+
+        new_tx = Plaid_Transactions(
+            transaction_id=t["transaction_id"],
+            account_id=t["account_id"],  # This FK references Plaid_Bank_Account.account_id
+            amount=t["amount"],
+            currency=t.get("iso_currency_code"),
+            category=", ".join(t["category"]) if t.get("category") else None,
+            merchant_name=t.get("merchant_name"),
+            date=tx_date
+        )
+        db.add(new_tx)
+    db.commit()
+
+    return {"message": "Bank accounts and transactions refreshed successfully."}
+
 @router.delete("/unlink")
 async def unlink_plaid(
     db: Session = Depends(get_db),
@@ -286,10 +394,6 @@ async def unlink_plaid(
     # then you can simply clear the relationship:
     db_user.bank_accounts = []
 
-    # Alternatively, if you prefer to delete explicitly:
-    # for account in db_user.bank_accounts:
-    #     db.delete(account)
-    
     db.commit()
     
     return {"message": "Plaid access token and all associated bank accounts and transactions deleted. Please re-link your account."}
