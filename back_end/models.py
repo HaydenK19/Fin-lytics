@@ -32,6 +32,11 @@ class Users(Base):
         back_populates="user",
         cascade="all, delete-orphan"
     )
+    save_goals = relationship(
+        "Save_Goals",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
 
 
 class Settings(Base):
@@ -163,3 +168,20 @@ class Plaid_Investment_Holding(Base):
     currency = Column(String(10))
     created_at = Column(DateTime, default=datetime.utcnow)
     investment_account = relationship("Plaid_Investment", back_populates="holdings")
+
+class Save_Goals(Base):
+    __tablename__ = "Save_Goals"
+
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    goal_name = Column(String(100), nullable=False)
+    goal_amount = Column(Float, nullable=False)
+    current_amount = Column(Float, default=0.0)
+    goal_date = Column(Date, nullable=False)
+    goal_status = Column(String(50), default="Active")
+    user_id = Column(Integer, ForeignKey("Users.id", ondelete="CASCADE"), nullable=False)
+
+    user = relationship("Users", back_populates="save_goals")
+
+    def __repr__(self):
+        return f"<Save_Goals(goal_id={self.goal_id}, goal_name={self.goal_name}, user_id={self.user_id})>"
+
