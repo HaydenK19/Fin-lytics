@@ -37,6 +37,11 @@ class Users(Base):
         back_populates="user",
         cascade="all, delete-orphan"
     )
+    balances = relationship(
+        "User_Balance",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
 
 
 class Settings(Base):
@@ -184,4 +189,16 @@ class Save_Goals(Base):
 
     def __repr__(self):
         return f"<Save_Goals(goal_id={self.goal_id}, goal_name={self.goal_name}, user_id={self.user_id})>"
+
+class User_Balance(Base):
+    __tablename__ = "User_Balance"
+
+    balance_id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, ForeignKey("Users.id", ondelete="CASCADE"), nullable=False)
+    balance_name = Column(String(50), nullable=False) 
+    balance_amount = Column(Float, default=0.0)
+    previous_balance = Column(Float, default=0.0)
+    balance_date = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("Users", back_populates="balances")
 
