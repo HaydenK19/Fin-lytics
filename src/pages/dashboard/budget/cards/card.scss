@@ -136,3 +136,40 @@
     margin-bottom: 8px;
 }
 
+.transaction-card {
+    .transactions-list {
+        max-height: 400px; // Match the height of the pie chart
+        overflow-y: auto;
+        
+        .transaction-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            background-color: white;
+            border-radius: 8px;
+
+            .transaction-info {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+
+                .merchant {
+                    font-weight: 700;
+                    font-size: 1rem;
+                    color: #1a1a1a;
+                }
+
+                .date {
+                    font-size: 0.875rem;
+                    color: #666;
+                }
+            }
+
+            .amount {
+                font-size: 1.125rem;
+                font-weight: 600;
+                text-align: right;
+                color: #dc2626; // Always red
+            }
+        }
+    }
+}

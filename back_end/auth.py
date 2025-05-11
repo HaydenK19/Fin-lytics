@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from starlette import status
 from database import SessionLocal
-from models import Users, Settings
+from models import Users, Settings, User_Balance
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
@@ -71,6 +71,21 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
         verification_token=verification_token
     )
     db.add(create_user_model)
+    db.commit()
+    db.refresh(create_user_model)  # Refresh to get the user ID
+
+    # Create three User_Balance instances
+    balance_types = ["checking", "savings", "cash"]
+    for balance_type in balance_types:
+        user_balance = User_Balance(
+            id=create_user_model.id,
+            balance_name=balance_type,
+            balance_amount=0.0,
+            previous_balance=0.0,
+            balance_date=datetime.utcnow()
+        )
+        db.add(user_balance)
+    
     db.commit()
 
     verification_link = f"http://localhost:8000/auth/verify_email?token={verification_token}"
