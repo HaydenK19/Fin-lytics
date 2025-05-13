@@ -1,0 +1,47 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+venv
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Virtual environment
+back_end/bin/
+back_end/lib/
+back_end/lib64/
+back_end/include/
+back_end/pyvenv.cfg
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Dependency files
+back_end/lib/python3.12/site-packages/
+back_end/lib/python3.12/site-packages/*
+
+
+
+#.env keys
+.env

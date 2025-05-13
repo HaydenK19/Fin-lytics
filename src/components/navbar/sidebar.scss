@@ -1,0 +1,204 @@
+.sidebar {
+    width: 150px;
+    background-color: #749181;
+    padding: 15px 10px;
+    height: 100%; //so that i can see, some displays need 100vh
+    // position: fixed;
+    transition: width 0.3s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    // position: fixed;
+
+}
+
+.sidebar-content {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #fff;
+    overflow-x: hidden;
+    flex-grow: 1;
+    justify-content: flex-start;
+}
+
+//logo section
+.side-logo {
+    padding-bottom: 10px;
+   
+    img {
+        width: 25px;
+    }
+}
+
+.menu-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start; 
+    width: 100%;
+    transition: max-height 0.3s ease-in-out 0.3s, 
+                opacity 0.3s ease-in-out 0.3s; 
+ }
+
+.menu-container ul {
+    list-style: none;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center; 
+    align-items: center; 
+
+}
+
+.menu-container li {
+    text-align: center; 
+    width: 100%;
+    font-size: 1rem;
+    // padding: 5px; 
+}
+
+.menu-container li a {
+    width: 100%;
+    text-decoration: none;
+    color: white;
+    padding: 10px 0; 
+    // margin: 0;
+    display: block; 
+    transition: background-color 0.2s ease-in-out;
+
+    &:hover {
+        background-color: #54695d;
+    }
+}
+
+// profile section 
+.profile-drop {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+// profile content (dropdown) 
+.profile-content {
+    font-weight: 500;
+    color: white;
+    overflow: hidden;
+    width: 100%;
+    box-sizing: border-box;
+    
+}   
+
+// .profile-content.show {
+    // display: block;
+    // position: absolute;
+// }
+
+.profile-content ul {
+    list-style: none;
+    padding: 0;
+    // margin: 0;
+    overflow: hidden;
+    width: 100%;
+    box-sizing: border-box;
+
+}
+
+.profile-content button {
+    width: 100%;
+    text-decoration: none;
+    color: white;
+    padding: 10px 0; 
+    font-family: inherit;
+    box-sizing: border-box;
+    border: none;
+    font-size: 1rem;
+    background-color: transparent;
+    display: flex;
+    justify-content: center;
+
+    // margin: 0;
+    // display: block; 
+    transition: background-color 0.2s ease-in-out;
+
+    &:hover {
+        background-color: #54695d;
+        cursor: pointer;
+    }
+}
+
+//icon button styles
+.profile-icon-text{
+    font-family: Quicksand;
+    margin: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    max-width: 100px;
+    animation: typing 0.5s steps(40, end);
+}
+
+@keyframes typing {
+    from {
+        width: 0;
+    }
+    to {
+        width: 100%;
+    }
+}
+
+// .profile-button {
+//     cursor: pointer;
+//     color: #ffffff;
+//     border: none;
+//     background-color: transparent;
+//     border-radius: 50px;
+//     padding: 5px;
+//     transition: background-color 0.3s ease;
+//     margin-bottom: 10px;
+//     width: 120px;
+
+//     &:hover{
+//         background-color: #54695d;
+//     }
+
+//     .arrow {
+//         transition: transform 0.3s ease;
+//     }
+
+//     &.open .arrow {
+//         transform: rotate(180deg);
+//     }
+// }
+
+
+.modal-overlay{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.248); 
+    z-index: 999; 
+    opacity: 0;
+    pointer-events: auto; 
+    animation: fadeInOverlay 0.5s ease-out forwards;
+}
+
+@keyframes fadeInOverlay {
+    0% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}
