@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import "../../../../components/popups/modal.scss";
+import "../../../../components/common/modal/modal";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPencil } from "@fortawesome/free-solid-svg-icons";
-import "./manbud.scss";
+import "../../../../styles/pages/dashboard/budget-page/popups/manage-budget.scss";
 
 const ManageBudgets = ({ onClose }) => {
     const [annualBudget, setAnnualBudget] = useState({

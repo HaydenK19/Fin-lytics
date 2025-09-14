@@ -7,7 +7,7 @@ import Dashboard from "./pages/dashboard/Dashboard";
 import NoPage from "./pages/NoPage";
 import About from "./pages/about/About";
 
-import IntroNavbar from "./components/navbar/IntroNavbar";
+import IntroNavbar from "./components/intro/IntroNavbar";
 
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);

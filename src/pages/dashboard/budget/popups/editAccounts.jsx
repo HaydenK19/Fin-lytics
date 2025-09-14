@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPencil, faCheck } from "@fortawesome/free-solid-svg-icons";
-import "./editAcc.scss";
+import "../../../../styles/pages/dashboard/budget-page/popups/edit-account.scss";
 
 const EditAccounts = ({ onClose }) => {
     const [balances, setBalances] = useState({

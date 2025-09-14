@@ -1,6 +1,6 @@
 //this file is the pop-up overlay component, similar to the login popup, but reusable for the dashboard side of things
 import React, { useState } from 'react';
-import "./modal.scss"
+import "../../../styles/components/modal/modal.scss";
 
 const Modal = ({ isOpen, onClose, content }) => {
     if (!isOpen) return null;

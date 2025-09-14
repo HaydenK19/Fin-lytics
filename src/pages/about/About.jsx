@@ -1,6 +1,6 @@
-import "./about.scss"
+import "../../styles/pages/about.scss";
 
-import DbNavbar from "../../components/navbar/Sidebar"
+// import DbNavbar from "../../components/navbar/Sidebar"
 
 const About = () => {
     return (

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import "./toggle.scss"
+import "../../../../styles/components/toggle.scss"
 
 const ToggleButton = ({label, checked, onChange}) => {
     const handleToggle = (e) => {

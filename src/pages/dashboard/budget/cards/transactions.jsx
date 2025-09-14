@@ -1,4 +1,4 @@
-import "./card.scss";
+import "../../../../styles/pages/dashboard/budget-page/card.scss";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 

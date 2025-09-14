@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import "./editTran.scss";
+import "../../../../styles/pages/dashboard/budget-page/popups/edit-trans.scss";
 
 const EditTransactions = ({ onClose }) => {
     const [transactions, setTransactions] = useState([]);

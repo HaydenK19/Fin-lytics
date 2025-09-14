@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import "./intropage.scss";
+import "../../styles/pages/intro/intropage.scss";
 import LoginBlock from './login';
 // import DemoBlock from "./demo";
 

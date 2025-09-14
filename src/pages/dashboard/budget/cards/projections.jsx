@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import "./card.scss";
+import "../../../../styles/pages/dashboard/budget-page/card.scss";
 
 const ProjectionsCard = () => {
 

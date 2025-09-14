@@ -1,15 +1,15 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import "./DbNav.scss";
+import "../../styles/components/commonnav.scss";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleUser, faBell } from "@fortawesome/free-solid-svg-icons";
 import finLogo from "../../assets/finLogo.png";
 import axios from "axios";
 
-import Modal from "../../components/popups/modal";
-import NotificationBlock from "../../components/popups/notifs";
-import SettingsBlock from "../../components/popups/settings/settings";
-import LogoutBlock from "../../components/popups/logout";
+import Modal from "./modal/modal";
+import NotificationBlock from "./modal/notifs";
+import SettingsBlock from "./modal/settings/settings";
+import LogoutBlock from "./modal/logout";
 
 const DbNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
     const [user, setUser] = useState(null);

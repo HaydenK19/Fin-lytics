@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
 import { usePlaidLink } from "react-plaid-link";
-import ToggleButton from "./togglebutton";
+// import ToggleButton from "./togglebutton";
 import axios from "axios";
 //comment out to turn off redirections
-import api from "../../../api";
-import plaidLogo from "../../../assets/plaidlogo.png";
-import "./settings.scss";
+import api from "../../../../api";
+import plaidLogo from "../../../../assets/plaidlogo.png";
+import "../../../../styles/components/modal/settings.scss";
 
 const SettingsBlock = () => {
     const [linkToken, setLinkToken] = useState(null);

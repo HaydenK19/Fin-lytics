@@ -6,12 +6,12 @@ import axios from "axios";
 // import miniLogo from "../../assets/miniLogo.png";
 
 // importing modal content
-import Modal from "../popups/modal";
+import Modal from "./modal/modal";
 // import NotificationBlock from "../popups/notifs";
 // import LogoutBlock from "../popups/logout";
 // import SettingsBlock from "../popups/settings/settings";
 
-import "./sidebar.scss";
+import "../../styles/components/sidebar.scss";
 
 const Sidebar = ({ setIsAuthenticated }) => {
     const [isModalOpen, setModalOpen] = useState(false);

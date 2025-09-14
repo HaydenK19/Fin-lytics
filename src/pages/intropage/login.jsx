@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import './login.scss';
+import '../../styles/pages/intro/login.scss';
 
 const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuthenticated }) => {
     const [isSigningUp, setIsSigningUp] = useState(true);

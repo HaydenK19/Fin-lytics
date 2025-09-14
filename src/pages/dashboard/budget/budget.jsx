@@ -1,9 +1,9 @@
-import "./budget.scss"
+import "../../../styles/pages/dashboard/budget-page/budget.scss"
 import React from "react";
 import { useEffect, useState } from "react";
 import axios from "axios";
 // import QuickAccess from "./cards/quickaccess.jsx" removed since logic will probably be simple enough to leave in parent
-import WeeklyOverview from "./cards/weekly/weekly.jsx"
+// import WeeklyOverview from "./cards/weekly/weekly.jsx"
 import VisualCard from "./cards/visualdata.jsx"
 // import MyAccountsCard from "./cards/myaccounts.jsx"
 import ProjectionsCard from "./cards/projections.jsx"
@@ -35,7 +35,7 @@ const Budget = () => {
                 <div className="group2">
                     <div className="week-card">
                         <div className="card-title">Weekly Overview</div>
-                        <WeeklyOverview/>
+                        {/* <WeeklyOverview/> */}
                     </div>
                 </div>
                 <div className="group3">

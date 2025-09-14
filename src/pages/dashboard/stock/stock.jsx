@@ -1,4 +1,4 @@
-import "./stock.scss"
+import "../../../styles/pages/dashboard/stock-page/stock.scss"
 
 const Stock = () => {
     return (
