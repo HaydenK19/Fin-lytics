@@ -1,143 +1,147 @@
-import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import "../../styles/components/commonnav.scss";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCircleUser, faBell } from "@fortawesome/free-solid-svg-icons";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  AppBar,
+  Toolbar,
+  Menu,
+  MenuItem,
+  Avatar,
+  Button,
+  Box,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Typography,
+} from "@mui/material";
 import finLogo from "../../assets/finLogo.png";
-import axios from "axios";
-
-import Modal from "./modal/modal";
-import NotificationBlock from "./modal/notifs";
 import SettingsBlock from "./modal/settings/settings";
-import LogoutBlock from "./modal/logout";
 
 const DbNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
-    const [user, setUser] = useState(null);
-    const [isOpen, setIsOpen] = useState(false); 
-    const [isNotifOpen, setIsNotifOpen] = useState(false);
-    const [isModalOpen, setModalOpen] = useState(false);
-    const [modalContent, setModalContent] = useState(null);
-    const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const navigate = useNavigate();
 
-    // const handleLogout = () => {
-    //     localStorage.removeItem("token");
-    //     setIsAuthenticated(false);
-    //     navigate("/");
-    // };
+  const handleMenuOpen = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
 
-    const handleLogout = () => {
-        localStorage.removeItem("token"); 
-        window.location.href = "/login"; 
-    };
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
 
-    const getUser = async () => {
-        try {
-            const token = localStorage.getItem("token");
-            const response = await axios.get("http://localhost:8000/", {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            });
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    setIsAuthenticated(false);
+    navigate("/");
+  };
 
-            console.log("Response:", response.data); // debug log, for some reason the response is null for f/l name
-
-            const { first_name, last_name, username, id } = response.data.User;
-            setUser({ firstName: first_name, lastName: last_name, username, id });
-            console.log(response.data);
-        } catch (error) {
-            console.error("Error fetching user:", error);
-            handleLogout(); // Log the user out if the token is invalid
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (token) {
+          const response = await fetch("/api/user", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = await response.json();
+          setUser(data);
         }
+      } catch (error) {
+        console.error("Failed to fetch user data", error);
+      }
     };
 
-    useEffect(() => {
-        if (isAuthenticated) {
-            getUser();
-        }
-    }, [isAuthenticated]);
+    if (isAuthenticated) {
+      fetchUser();
+    }
+  }, [isAuthenticated]);
 
-    const toggleProfileDropdown = () => {
-        setIsOpen((prev) => !prev);
-        setIsNotifOpen(false); 
-    };
-
-    const toggleNotifDropdown = () => {
-        setIsNotifOpen((prev) => !prev);
-        setIsOpen(false);
-    };
-
-    const openModal = (contentComponent) => {
-        setModalContent(() => contentComponent);
-        setModalOpen(true);
-    };
-
-    const closeModal = () => {
-        setModalContent(null);
-        setModalOpen(false);
-    };
-
-    return (
-        <>
-            <div className="navbar">
-                <div className="nav-left">
-                    <Link to="/"><img src={finLogo} alt="Logo" className="logo" /></Link>
-                </div>
-                <div className="nav-mid">
-                    <ul>
-                        {/* hello */}
-                    </ul>
-                </div>
-                <div className="nav-right">
-                    <div className="notif-container">
-                        <button className="notifbtn" onClick={toggleNotifDropdown}>
-                            <FontAwesomeIcon icon={faBell} size="2xl" />
-                        </button>
-                        <div className="notif-content">
-                            {isNotifOpen && <NotificationBlock />}
-                        </div>
-                    </div>
-
-                    <div className="profilebtn-container">
-                        <button className="profilebtn" onClick={toggleProfileDropdown}>
-                            {/* {user && <span className="profile-icon-text">{user.firstName}</span>} */}
-                            <FontAwesomeIcon icon={faCircleUser} size="2xl" />
-                        </button>
-                        {isOpen && (
-                            <ProfileContent
-                                user={user}
-                                openModal={openModal}
-                                setIsAuthenticated={setIsAuthenticated}
-                                navigate={navigate}
-                            />
-                        )}
-                    </div>
-                </div>
-            </div>
-            {isModalOpen && (
-                <div className="modal-overlay">
-                    <div className="modal-content">
-                        {modalContent && modalContent()}
-                        <button className="close-modal" onClick={closeModal}>
-                            x
-                        </button>
-                    </div>
-                </div>
-            )}
-        </>
-    );
-};
-
-const ProfileContent = ({ user, openModal, setIsAuthenticated, navigate }) => {
-    return (
-        <div className="profile-content">
-            <p className="greeting">
-                {user ? `Welcome, ${user.firstName}!` : "Welcome!"}
-            </p>
-            {/* <button onClick={() => openModal(() => <NotificationBlock />)}>Notifications</button> */}
-            <button onClick={() => openModal(() => <SettingsBlock />)}>Settings</button>
-            <button onClick={() => openModal(() => <LogoutBlock setIsAuthenticated={setIsAuthenticated} navigate={navigate} />)}>Log Out</button>
-        </div>
-    );
+  return (
+    <AppBar position="fixed" sx={{ backgroundColor: "white", color: "black", height: "64px" }}>
+      <Toolbar>
+        <Box sx={{ flexGrow: 1 }}>
+          <img
+            src={finLogo}
+            alt="Finlytics Logo"
+            style={{ height: "40px", cursor: "pointer" }}
+            onClick={() => navigate("/")}
+          />
+        </Box>
+        {isAuthenticated ? (
+          <>
+            <Avatar
+              alt={user?.name || "User"}
+              src={user?.avatar}
+              onClick={handleMenuOpen}
+              sx={{ cursor: "pointer" }}
+            />
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={handleMenuClose}
+            >
+              <MenuItem
+                onClick={() => {
+                  handleMenuClose();
+                  setSettingsOpen(true);
+                }}
+              >
+                Settings
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  handleMenuClose();
+                  setLogoutConfirmOpen(true);
+                }}
+              >
+                Logout
+              </MenuItem>
+            </Menu>
+            <Dialog
+              open={logoutConfirmOpen}
+              onClose={() => setLogoutConfirmOpen(false)}
+            >
+              <DialogTitle>Confirm Logout</DialogTitle>
+              <DialogContent>
+                <Typography>Are you sure you want to log out?</Typography>
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => setLogoutConfirmOpen(false)} color="primary">
+                  Cancel
+                </Button>
+                <Button onClick={handleLogout} color="primary">
+                  Logout
+                </Button>
+              </DialogActions>
+            </Dialog>
+            <Dialog
+              open={settingsOpen}
+              onClose={() => setSettingsOpen(false)}
+              fullWidth
+              maxWidth="sm"
+            >
+              <DialogTitle>Settings</DialogTitle>
+              <DialogContent>
+                <SettingsBlock />
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => setSettingsOpen(false)} color="primary">
+                  Close
+                </Button>
+              </DialogActions>
+            </Dialog>
+          </>
+        ) : (
+          <Button color="inherit" onClick={() => navigate("/login")}>
+            Login
+          </Button>
+        )}
+      </Toolbar>
+    </AppBar>
+  );
 };
 
 export default DbNavbar;
