@@ -6,12 +6,10 @@ function Stock() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-//   const tickers = [
-//     "NVDA", "MSFT", "AAPL", "AMZN", "GOOGL",
-//     "META", "BRK.B", "TSLA", "AVGO", "PLTR",
-//   ];
-
-  const tickers = ["AAPL"]; // For testing, just use AAPL
+  const tickers = [
+    "NVDA", "MSFT", "AAPL", "AMZN", "GOOGL",
+    "META", "BRK.B", "TSLA", "AVGO", "PLTR", "VOO",
+  ];
 
   async function generatePredictions() {
     try {
