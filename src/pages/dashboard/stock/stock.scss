@@ -1,0 +1,55 @@
+.stock-page {
+  width: 80%;
+  margin: 0 auto;
+  margin-top: 2rem;
+  overflow-x: auto;
+
+  &__title {
+    font-size: 2rem; // same as .section-title in portfolio
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    color: #000000;
+    text-align: center;
+  }
+
+  &__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+    margin-top: 1rem;
+    border-radius: 8px;
+    overflow: hidden;
+
+    thead {
+      background-color: #ebf4ff; // matches holdings-section header
+    }
+
+    th,
+    td {
+      border: 1px solid #7ea5de; // consistent blue border
+      padding: 0.75rem;
+      text-align: center;
+    }
+
+    tbody {
+      tr {
+        transition: background-color 0.2s ease-in-out;
+
+        &:hover {
+          background-color: #f6fafd; // same as .total-row background
+        }
+      }
+    }
+  }
+
+  // Optional utility classes
+  &__positive {
+    color: #2e7d32; // matches .positive in portfolio
+    font-weight: 600;
+  }
+
+  &__negative {
+    color: #c62828;
+    font-weight: 600;
+  }
+}
