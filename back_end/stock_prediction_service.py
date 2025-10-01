@@ -42,7 +42,7 @@ class StockPredictionService:
             logger.error(f"Failed to load model: {e}")
             return False
     
-    def fetch_stock_data(self, ticker: str, days_back: int = 30) -> Optional[pd.DataFrame]:
+    def fetch_stock_data(self, ticker: str, days_back: int = 730) -> Optional[pd.DataFrame]:
         """Fetch historical stock data from FMP API"""
         try:
             # Calculate date range
@@ -101,7 +101,7 @@ class StockPredictionService:
             return None
     
     def _regularize_data(self, df: pd.DataFrame, ticker: str) -> pd.DataFrame:
-        """Regularize data to 5-minute intervals (similar to your training code)"""
+        """Regularize data to 5-minute intervals """
         FMT = "%Y-%m-%d %H:%M:%S"
         FREQ = "5min"
         
@@ -144,7 +144,7 @@ class StockPredictionService:
             
             # Fetch recent data
             df = self.fetch_stock_data(ticker)
-            if df is None or len(df) < 100:  # Need sufficient history
+            if df is None or len(df) < 365:  # Need sufficient history
                 logger.warning(f"Insufficient data for {ticker}")
                 return None
             

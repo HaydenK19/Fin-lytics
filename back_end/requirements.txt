@@ -13,3 +13,4 @@ autogluon.timeseries
 pandas
 matplotlib
 numpy
+autogluon
