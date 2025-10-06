@@ -36,14 +36,13 @@ const ManageBudgets = ({ onClose }) => {
         }
     };
 
-    // Fetch user's categories from backend
+    // Fetch user's categories with weekly spent from backend
     const fetchCategories = async () => {
         try {
             setLoading(true);
             const userId = getUserIdFromToken();
             if (!userId) throw new Error("User not authenticated");
-            
-            const response = await api.get(`/user_categories/${userId}`);
+            const response = await api.get(`/user_categories/${userId}/weekly_spent`);
             setCategories(response.data);
         } catch (error) {
             console.error("Error fetching categories:", error);
@@ -231,7 +230,7 @@ const BudgetGoals = ({
                         <th>Category</th>
                         <th>Weekly Goal</th>
                         <th>Amount Spent</th>
-                        <th>Ammount Remaining</th>
+                        <th>Amount Remaining</th>
                         <th>Edit</th>
                     </tr>
                 </thead>
@@ -269,6 +268,8 @@ const BudgetGoals = ({
                                         }
                                     />
                                 </td>
+                                <td>${category.amount_spent?.toLocaleString() ?? 0}</td>
+                                <td>${category.amount_remaining?.toLocaleString() ?? 0}</td>
                                 <td>
                                     <button
                                         type="submit"
@@ -289,8 +290,8 @@ const BudgetGoals = ({
                             <tr key={category.id}>
                                 <td>{category.name}</td>
                                 <td>${category.weekly_limit.toLocaleString()}</td>
-                                <td></td>
-                                <td></td>
+                                <td>${category.amount_spent?.toLocaleString() ?? 0}</td>
+                                <td>${category.amount_remaining?.toLocaleString() ?? 0}</td>
                                 <td>
                                     <button
                                         className="edit-btn"

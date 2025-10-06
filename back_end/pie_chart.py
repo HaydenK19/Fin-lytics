@@ -26,10 +26,18 @@ def get_total_expenses_per_category(user_id: int, db: Session):
     categories = get_user_categories(user_id, db)
     category_expenses = {}
 
+    from models import User_Transactions, User_Transaction_Category_Link
+
     for category in categories:
-        transactions = db.query(Plaid_Transactions).join(Transaction_Category_Link).filter(Transaction_Category_Link.category_id == category["id"]).all()
-        total_expense = sum(abs(transaction.amount) for transaction in transactions)
-        category_expenses[category["name"]] = total_expense
+        # Plaid transactions
+        plaid_transactions = db.query(Plaid_Transactions).join(Transaction_Category_Link).filter(Transaction_Category_Link.category_id == category["id"]).all()
+        plaid_total = sum(abs(transaction.amount) for transaction in plaid_transactions)
+
+        # User transactions
+        user_transactions = db.query(User_Transactions).join(User_Transaction_Category_Link).filter(User_Transaction_Category_Link.category_id == category["id"], User_Transactions.user_id == user_id).all()
+        user_total = sum(abs(transaction.amount) for transaction in user_transactions)
+
+        category_expenses[category["name"]] = plaid_total + user_total
 
     return category_expenses
 

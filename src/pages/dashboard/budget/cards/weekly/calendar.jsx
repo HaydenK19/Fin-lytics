@@ -91,18 +91,18 @@ const CalendarCard = () => {
   const fetchTransactions = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get("http://localhost:8000/user_transactions/", {
+      const response = await axios.get("http://localhost:8000/entered_transactions/combined", {
         headers: { Authorization: `Bearer ${token}` },
         withCredentials: true,
       });
   
       console.log("API Response:", response.data); 
   
-      const { db_transactions } = response.data;
+      const { all_transactions } = response.data;
   
-      const transformedEvents = assignTransactionTimes(db_transactions).map((transaction) => ({
+      const transformedEvents = assignTransactionTimes(all_transactions).map((transaction) => ({
         id: transaction.id || `event-${Math.random()}`, 
-        title: transaction.merchant_name || transaction.category || "Untitled Transaction", 
+        title: transaction.description || transaction.merchant_name || transaction.category || "Untitled Transaction", 
         category: transaction.category || "Uncategorized",
         start: transaction.start,
         end: transaction.end,
