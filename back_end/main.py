@@ -14,6 +14,7 @@ import stock_routes
 import pie_chart
 import user_balances
 import user_transactions
+import entered_transactions
 import balance_routes
 
 app = FastAPI()
@@ -41,6 +42,7 @@ app.include_router(stock_routes.router)
 app.include_router(pie_chart.router)
 app.include_router(user_balances.router)
 app.include_router(user_transactions.router)
+app.include_router(entered_transactions.router)
 app.include_router(balance_routes.router)
 
 
