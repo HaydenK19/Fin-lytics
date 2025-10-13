@@ -13,7 +13,15 @@ import {
     TableBody,
     IconButton,
     Typography,
+    Select,
+    MenuItem,
+    FormControl,
+    InputLabel,
+    Box,
+    Stack,
 } from "@mui/material";
+import CloseIcon from '@mui/icons-material/Close';
+import EditIcon from '@mui/icons-material/Edit';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPencil } from "@fortawesome/free-solid-svg-icons";
 
@@ -33,6 +41,22 @@ const ManageBudgets = ({ onClose }) => {
 
     const [isEditingAnnual, setIsEditingAnnual] = useState(false);
     const [newCategory, setNewCategory] = useState({ name: "", current: 0, actual: 0 });
+
+    // Predefined category options
+    const commonCategories = [
+        "Food & Dining",
+        "Entertainment", 
+        "Transportation",
+        "Utilities",
+        "Healthcare",
+        "Shopping",
+        "Travel",
+        "Education",
+        "Insurance",
+        "Personal Care",
+        "Subscriptions",
+        "Other"
+    ];
 
     const handleAnnualEdit = (e) => {
         e.preventDefault();
@@ -55,102 +79,182 @@ const ManageBudgets = ({ onClose }) => {
 
     return (
         <Dialog open onClose={onClose} fullWidth maxWidth="md">
-            <DialogTitle>Manage Budget Projections</DialogTitle>
+            <DialogTitle sx={{ position: 'relative', pb: 1 }}>
+                Manage Budget Projections
+                <IconButton
+                    aria-label="close"
+                    onClick={onClose}
+                    sx={{
+                        position: 'absolute',
+                        right: 8,
+                        top: 8,
+                        color: (theme) => theme.palette.grey[500],
+                    }}
+                >
+                    <CloseIcon />
+                </IconButton>
+            </DialogTitle>
             <DialogContent>
-                <Typography variant="h6">Annual Savings Goal:</Typography>
-                <Table>
+                <Typography variant="h6" sx={{ mb: 1 }}>Annual Savings Goal:</Typography>
+                <Table size="small">
                     <TableHead>
                         <TableRow>
-                            <TableCell>Annual Goal</TableCell>
-                            <TableCell>Working</TableCell>
-                            <TableCell>Remainder</TableCell>
-                            <TableCell>Edit</TableCell>
+                            <TableCell sx={{ fontWeight: 600, py: 1 }}>Annual Goal</TableCell>
+                            <TableCell sx={{ fontWeight: 600, py: 1 }}>Working</TableCell>
+                            <TableCell sx={{ fontWeight: 600, py: 1 }}>Remainder</TableCell>
+                            <TableCell sx={{ fontWeight: 600, py: 1 }}>Actions</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         <TableRow>
                             {isEditingAnnual ? (
-                                <TableCell>
+                                <TableCell sx={{ py: 1 }}>
                                     <form onSubmit={handleAnnualEdit}>
-                                        <TextField
-                                            type="number"
-                                            value={annualBudget.amount}
-                                            onChange={(e) =>
-                                                setAnnualBudget((prev) => ({
-                                                    ...prev,
-                                                    amount: parseInt(e.target.value),
-                                                }))
-                                            }
-                                            size="small"
-                                        />
-                                        <Button type="submit">Save</Button>
+                                        <Stack direction="row" spacing={1} alignItems="center">
+                                            <TextField
+                                                type="number"
+                                                value={annualBudget.amount}
+                                                onChange={(e) =>
+                                                    setAnnualBudget((prev) => ({
+                                                        ...prev,
+                                                        amount: parseInt(e.target.value) || 0,
+                                                    }))
+                                                }
+                                                size="small"
+                                                sx={{ width: 120 }}
+                                            />
+                                            <Button 
+                                                type="submit" 
+                                                size="small" 
+                                                variant="contained"
+                                                sx={{ 
+                                                    backgroundColor: '#2563eb',
+                                                    minWidth: 60,
+                                                    '&:hover': { backgroundColor: '#1d4ed8' }
+                                                }}
+                                            >
+                                                Save
+                                            </Button>
+                                        </Stack>
                                     </form>
                                 </TableCell>
                             ) : (
-                                <TableCell>${annualBudget.amount}</TableCell>
+                                <TableCell sx={{ py: 1, fontWeight: 500 }}>${annualBudget.amount.toLocaleString()}</TableCell>
                             )}
-                            <TableCell>${annualBudget.current}</TableCell>
-                            <TableCell>${annualBudget.amount - annualBudget.current}</TableCell>
-                            <TableCell>
-                                <IconButton onClick={() => setIsEditingAnnual(true)}>
-                                    <FontAwesomeIcon icon={faPencil} />
+                            <TableCell sx={{ py: 1 }}>${annualBudget.current.toLocaleString()}</TableCell>
+                            <TableCell sx={{ py: 1, color: annualBudget.amount - annualBudget.current >= 0 ? 'success.main' : 'error.main' }}>
+                                ${(annualBudget.amount - annualBudget.current).toLocaleString()}
+                            </TableCell>
+                            <TableCell sx={{ py: 1 }}>
+                                <IconButton 
+                                    onClick={() => setIsEditingAnnual(true)} 
+                                    size="small"
+                                    sx={{ color: '#2563eb' }}
+                                >
+                                    <EditIcon fontSize="small" />
                                 </IconButton>
                             </TableCell>
                         </TableRow>
                     </TableBody>
                 </Table>
 
-                <Typography variant="h6" sx={{ marginTop: 2 }}>
+                <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>
                     Categorical Budget Goals:
                 </Typography>
-                <Table>
+                <Table size="small">
                     <TableHead>
                         <TableRow>
-                            <TableCell>Category</TableCell>
-                            <TableCell>Monthly Goal</TableCell>
-                            <TableCell>Working</TableCell>
-                            <TableCell>Remainder</TableCell>
+                            <TableCell sx={{ fontWeight: 600, py: 1 }}>Category</TableCell>
+                            <TableCell sx={{ fontWeight: 600, py: 1 }}>Monthly Goal</TableCell>
+                            <TableCell sx={{ fontWeight: 600, py: 1 }}>Current Spent</TableCell>
+                            <TableCell sx={{ fontWeight: 600, py: 1 }}>Remaining</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {categories.map((category) => (
                             <TableRow key={category.id}>
-                                <TableCell>{category.name}</TableCell>
-                                <TableCell>${category.current}</TableCell>
-                                <TableCell>${category.actual}</TableCell>
-                                <TableCell>${category.current - category.actual}</TableCell>
+                                <TableCell sx={{ py: 1, fontWeight: 500 }}>{category.name}</TableCell>
+                                <TableCell sx={{ py: 1 }}>${category.current.toLocaleString()}</TableCell>
+                                <TableCell sx={{ py: 1 }}>${category.actual.toLocaleString()}</TableCell>
+                                <TableCell sx={{ 
+                                    py: 1, 
+                                    color: category.current - category.actual >= 0 ? 'success.main' : 'error.main',
+                                    fontWeight: 500
+                                }}>
+                                    ${(category.current - category.actual).toLocaleString()}
+                                </TableCell>
                             </TableRow>
                         ))}
+                        {categories.length === 0 && (
+                            <TableRow>
+                                <TableCell colSpan={4} sx={{ py: 2, textAlign: 'center', color: 'text.secondary', fontStyle: 'italic' }}>
+                                    No categories added yet. Add your first category below!
+                                </TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                 </Table>
 
-                <form onSubmit={handleAddCategory} style={{ marginTop: 16 }}>
-                    <TextField
-                        label="Category Name"
-                        value={newCategory.name}
-                        onChange={(e) =>
-                            setNewCategory((prev) => ({ ...prev, name: e.target.value }))
-                        }
-                        size="small"
-                        style={{ marginRight: 8 }}
-                    />
-                    <TextField
-                        label="Monthly Goal"
-                        type="number"
-                        value={newCategory.current}
-                        onChange={(e) =>
-                            setNewCategory((prev) => ({ ...prev, current: parseInt(e.target.value) }))
-                        }
-                        size="small"
-                        style={{ marginRight: 8 }}
-                    />
-                    <Button type="submit" variant="contained" color="primary">
-                        Add Category
-                    </Button>
-                </form>
+                <Box sx={{ mt: 2, p: 2, backgroundColor: '#f8f9fa', borderRadius: 1 }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
+                        Add New Category
+                    </Typography>
+                    <form onSubmit={handleAddCategory}>
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="end">
+                            <FormControl size="small" sx={{ minWidth: 200 }}>
+                                <InputLabel>Category</InputLabel>
+                                <Select
+                                    value={newCategory.name}
+                                    label="Category"
+                                    onChange={(e) =>
+                                        setNewCategory((prev) => ({ ...prev, name: e.target.value }))
+                                    }
+                                >
+                                    {commonCategories.map((category) => (
+                                        <MenuItem key={category} value={category}>
+                                            {category}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                            <TextField
+                                label="Monthly Goal ($)"
+                                type="number"
+                                value={newCategory.current}
+                                onChange={(e) =>
+                                    setNewCategory((prev) => ({ ...prev, current: parseInt(e.target.value) || 0 }))
+                                }
+                                size="small"
+                                sx={{ minWidth: 140 }}
+                            />
+                            <Button 
+                                type="submit" 
+                                variant="contained" 
+                                disabled={!newCategory.name || newCategory.current <= 0}
+                                sx={{
+                                    backgroundColor: '#2563eb',
+                                    minWidth: 120,
+                                    '&:hover': {
+                                        backgroundColor: '#1d4ed8'
+                                    }
+                                }}
+                            >
+                                Add Category
+                            </Button>
+                        </Stack>
+                    </form>
+                </Box>
             </DialogContent>
             <DialogActions>
-                <Button onClick={onClose} color="secondary">
+                <Button 
+                    onClick={onClose}
+                    sx={{ 
+                        color: '#666',
+                        '&:hover': {
+                            backgroundColor: 'rgba(102, 102, 102, 0.1)'
+                        }
+                    }}
+                >
                     Close
                 </Button>
             </DialogActions>

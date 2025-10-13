@@ -55,7 +55,7 @@ const TransactionCard = () => {
     }, [navigate]);
 
     return (
-        <Paper elevation={1} sx={{ p: 2 }} className="transaction-card">
+        <Box sx={{ p: 2 }} className="transaction-card">
             {/* <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
                 <Typography variant="h6">Recent Transactions</Typography>
                 <Typography variant="caption" color="text.secondary">Last 30 days</Typography>
@@ -72,7 +72,7 @@ const TransactionCard = () => {
             )}
 
             {!loading && !error && (
-                <List sx={{ maxHeight: 320, overflow: 'auto' }}>
+                <List>
                     {transactions.length === 0 ? (
                         <ListItem>
                             <ListItemText primary="No transactions in the past 30 days" />
@@ -97,7 +97,7 @@ const TransactionCard = () => {
                     )}
                 </List>
             )}
-        </Paper>
+        </Box>
     );
 };
 

@@ -102,7 +102,9 @@ const ProjectionsCard = () => {
     const removeExpense = (id) => setMonthlyExpenses((list) => list.filter((it) => it.id !== id));
 
         // per-interval expenses handlers
-        const addPerIntervalExpense = () => setPerIntervalExpenses((s) => [...s, { id: Date.now(), desc: '', intervalIndex: 1, amount: 0 }]);
+        const addPerIntervalExpense = () => {
+            setPerIntervalExpenses((s) => [...s, { id: Date.now(), desc: '', intervalIndex: 1, amount: 0 }]);
+        };
         const updatePerIntervalExpense = (id, field, value) =>
             setPerIntervalExpenses((list) => list.map((it) => (it.id === id ? { ...it, [field]: field === 'amount' || field === 'intervalIndex' ? parseFloat(value) || 0 : value } : it)));
         const removePerIntervalExpense = (id) => setPerIntervalExpenses((list) => list.filter((it) => it.id !== id));
@@ -116,17 +118,15 @@ const ProjectionsCard = () => {
     };
 
     const computeTotals = () => {
-        const months =
-            timeframe === "custom"
-                ? calculateMonthsBetween(startDate, endDate || startDate)
-                : timeframesInMonths[timeframe] || 0;
+        const months = timeframesInMonths[timeframe] || 0;
 
             const totalMonthlyExp = monthlyExpenses.reduce((acc, cur) => acc + (parseFloat(cur.amount) || 0), 0);
             const intervals = Math.max(months * (intervalsPerMonth[frequency] || 0), 0);
-            // sum per-interval expenses that fall within the interval count
+            // sum per-interval expenses that fall within the interval range
             const totalPerIntervalExpenses = perIntervalExpenses.reduce((acc, cur) => {
-                const idx = parseInt(cur.intervalIndex) || 0;
-                if (idx >= 1 && idx <= intervals) return acc + (parseFloat(cur.amount) || 0);
+                const intervalIndex = parseInt(cur.intervalIndex) || 0;
+                const isWithinRange = intervalIndex >= 1 && intervalIndex <= intervals;
+                if (isWithinRange) return acc + (parseFloat(cur.amount) || 0);
                 return acc;
             }, 0);
 
@@ -138,12 +138,10 @@ const ProjectionsCard = () => {
     };
 
         const onCalculate = () => {
-        if (timeframe !== "custom" && !endDate) {
             const monthsToAdd = timeframesInMonths[timeframe] || 0;
             const newEnd = new Date(startDate);
             newEnd.setMonth(newEnd.getMonth() + monthsToAdd);
             setEndDate(newEnd);
-        }
         setIsShowingResults(true);
     };
 
@@ -155,13 +153,17 @@ const ProjectionsCard = () => {
     const preview = () => computeTotals();
 
     const validatePerInterval = () => {
-        const { intervals } = computeTotals();
-        const invalid = perIntervalExpenses.filter((it) => (parseInt(it.intervalIndex) || 0) < 1 || (parseInt(it.intervalIndex) || 0) > intervals);
+        const months = timeframesInMonths[timeframe] || 0;
+        const intervals = Math.max(months * (intervalsPerMonth[frequency] || 0), 0);
+        const invalid = perIntervalExpenses.filter((it) => {
+            const intervalIndex = parseInt(it.intervalIndex) || 0;
+            return intervalIndex < 1 || intervalIndex > intervals;
+        });
         return invalid;
     };
 
     return (
-        <Paper className="projections-card" sx={{ padding: 2, overflow: 'hidden' }}>
+        <Box className="projections-card" sx={{ padding: 1.5, overflow: 'hidden' }}>
             <Box className="card-header" sx={{ mb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Tabs value={tabIndex} onChange={handleTabChange} aria-label="projections tabs">
                     <Tab label="Basic" />
@@ -173,8 +175,8 @@ const ProjectionsCard = () => {
                 <Box>
                     {!isShowingResults && (
                         <Box sx={{ maxHeight: 520, overflow: 'auto', pr: 1 }}>
-                            <Stack spacing={2} className="card-body" sx={{ }}>
-                                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+                            <Stack spacing={1.5} className="card-body" sx={{ }}>
+                                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center">
                                     <FormControl sx={{ minWidth: 160}}>
                                         <InputLabel id="timeframe-label">Timeframe</InputLabel>
                                         <Select labelId="timeframe-label" id="timeframe" value={timeframe} label="Timeframe" onChange={handleTimeframeChange}>
@@ -183,7 +185,6 @@ const ProjectionsCard = () => {
                                             <MenuItem value="9 months">9 Months</MenuItem>
                                             <MenuItem value="1 year">1 Year</MenuItem>
                                             <MenuItem value="1.5 years">1.5 Years</MenuItem>
-                                            <MenuItem value="custom">Custom</MenuItem>
                                         </Select>
                                     </FormControl>
 
@@ -231,8 +232,8 @@ const ProjectionsCard = () => {
                 <Box>
                     {!isShowingResults && (
                         <Box sx={{ maxHeight: 520, overflow: 'auto', pr: 1 }}>
-                            <Stack spacing={2} className="card-body">
-                                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+                            <Stack spacing={1.5} className="card-body">
+                                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center">
                                     <FormControl sx={{ minWidth: 160 }}>
                                         <InputLabel id="timeframe-label">Timeframe</InputLabel>
                                         <Select labelId="timeframe-label" id="timeframe" value={timeframe} label="Timeframe" onChange={handleTimeframeChange}>
@@ -241,7 +242,6 @@ const ProjectionsCard = () => {
                                             <MenuItem value="9 months">9 Months</MenuItem>
                                             <MenuItem value="1 year">1 Year</MenuItem>
                                             <MenuItem value="1.5 years">1.5 Years</MenuItem>
-                                            <MenuItem value="custom">More Involved (Custom)</MenuItem>
                                         </Select>
                                     </FormControl>
 
@@ -286,27 +286,27 @@ const ProjectionsCard = () => {
 
                                 <Box>
                                     <Box sx={{ mb: 1 }}>
-                                        <Typography variant="caption" color="text.secondary">Preview: {preview().months} months — {preview().intervals} intervals ({intervalsPerMonth[frequency]} per month). Choose "Per-interval" to assign expenses to specific intervals. Interval numbers start at 1.</Typography>
+                                        <Typography variant="caption" color="text.secondary">Preview: {preview().months} months — {preview().intervals} intervals ({intervalsPerMonth[frequency]} per month). Choose "Date-Specific" to assign expenses to particular dates within your timeframe.</Typography>
                                     </Box>
 
-                                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+                                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center">
                                         <Typography variant="subtitle1">Expense Mode</Typography>
                                         <FormControl sx={{ minWidth: 180 }}>
                                             <InputLabel id="expense-mode-label">Mode</InputLabel>
                                             <Select labelId="expense-mode-label" value={expenseMode} label="Mode" onChange={(e) => setExpenseMode(e.target.value)}>
                                                 <MenuItem value={'monthly'}>Recurring Monthly (applies each month)</MenuItem>
-                                                <MenuItem value={'perInterval'}>Per-interval (assign to specific interval)</MenuItem>
+                                                <MenuItem value={'perInterval'}>Per-Interval (assign to specific interval)</MenuItem>
                                             </Select>
                                         </FormControl>
                                     </Stack>
 
                                     {expenseMode === 'monthly' && (
-                                        <Stack spacing={1} sx={{ mt: 1 }}>
-                                            <Typography sx={{ mt: 1 }}>Monthly Expenses</Typography>
+                                        <Stack spacing={0.5} sx={{ mt: 0.5 }}>
+                                            <Typography sx={{ mt: 0.5, fontSize: '0.9rem' }}>Monthly Expenses</Typography>
                                             {monthlyExpenses.map((exp) => (
-                                                <Stack key={exp.id} direction="row" spacing={1} alignItems="center">
-                                                    <TextField placeholder="Description" value={exp.desc} onChange={(e) => updateExpense(exp.id, 'desc', e.target.value)} sx={{ flex: 1 }} />
-                                                    <TextField placeholder="Amount" type="number" value={exp.amount} onChange={(e) => updateExpense(exp.id, 'amount', e.target.value)} sx={{ width: 140 }} />
+                                                <Stack key={exp.id} direction="row" spacing={0.5} alignItems="center">
+                                                    <TextField placeholder="Description" value={exp.desc} onChange={(e) => updateExpense(exp.id, 'desc', e.target.value)} sx={{ flex: 1 }} size="small" />
+                                                    <TextField label="Amount ($)" type="number" value={exp.amount} onChange={(e) => updateExpense(exp.id, 'amount', e.target.value)} sx={{ width: 140 }} size="small" />
                                                     <IconButton color="error" onClick={() => removeExpense(exp.id)}>
                                                         <DeleteIcon />
                                                     </IconButton>
@@ -318,27 +318,44 @@ const ProjectionsCard = () => {
                                     )}
 
                                     {expenseMode === 'perInterval' && (
-                                        <Stack spacing={1} sx={{ mt: 1 }}>
-                                            <Typography sx={{ mt: 1 }}>Per-interval Expenses</Typography>
+                                        <Stack spacing={0.5} sx={{ mt: 0.5 }}>
+                                            <Typography sx={{ mt: 0.5, fontSize: '0.9rem' }}>Per-Interval Expenses</Typography>
                                             {perIntervalExpenses.map((exp) => {
-                                                const idx = parseInt(exp.intervalIndex) || 0;
-                                                const invalid = idx < 1 || idx > preview().intervals;
+                                                const months = timeframesInMonths[timeframe] || 0;
+                                                const intervals = Math.max(months * (intervalsPerMonth[frequency] || 0), 0);
+                                                const intervalIndex = parseInt(exp.intervalIndex) || 0;
+                                                const invalid = intervalIndex < 1 || intervalIndex > intervals;
                                                 return (
-                                                    <Stack key={exp.id} direction="row" spacing={1} alignItems="center">
-                                                        <TextField placeholder="Description" value={exp.desc} onChange={(e) => updatePerIntervalExpense(exp.id, 'desc', e.target.value)} sx={{ flex: 1 }} />
-                                                        <TextField placeholder="Interval #" type="number" value={exp.intervalIndex} onChange={(e) => updatePerIntervalExpense(exp.id, 'intervalIndex', e.target.value)} sx={{ width: 120 }} />
-                                                        <TextField placeholder="Amount" type="number" value={exp.amount} onChange={(e) => updatePerIntervalExpense(exp.id, 'amount', e.target.value)} sx={{ width: 140 }} />
+                                                    <Stack key={exp.id} direction="row" spacing={0.5} alignItems="center">
+                                                        <TextField placeholder="Description" value={exp.desc} onChange={(e) => updatePerIntervalExpense(exp.id, 'desc', e.target.value)} sx={{ flex: 1 }} size="small" />
+                                                        <TextField 
+                                                            label="Interval #" 
+                                                            type="number" 
+                                                            value={exp.intervalIndex} 
+                                                            onChange={(e) => updatePerIntervalExpense(exp.id, 'intervalIndex', e.target.value)} 
+                                                            sx={{ width: 100 }} 
+                                                            size="small"
+                                                            inputProps={{
+                                                                min: 1,
+                                                                max: intervals
+                                                            }}
+                                                            error={invalid}
+                                                            helperText={invalid ? `Must be 1-${intervals}` : ''}
+                                                        />
+                                                        <TextField label="Amount ($)" type="number" value={exp.amount} onChange={(e) => updatePerIntervalExpense(exp.id, 'amount', e.target.value)} sx={{ width: 120 }} size="small" />
                                                         <IconButton color="error" onClick={() => removePerIntervalExpense(exp.id)}>
                                                             <DeleteIcon />
                                                         </IconButton>
-                                                        {invalid && <Typography color="error" variant="caption" sx={{ ml: 1 }}>Interval out of range</Typography>}
+                                                        {invalid && <Typography color="error" variant="caption" sx={{ ml: 1 }}>Date out of range</Typography>}
                                                     </Stack>
                                                 );
                                             })}
 
-                                            <Button startIcon={<AddIcon />} onClick={addPerIntervalExpense} variant="outlined">Add Per-interval Expense</Button>
-                                            <Typography variant="caption">Tip: interval numbers start at 1 up to the total intervals calculated after selecting timeframe & frequency.</Typography>
-                                            {validatePerInterval().length > 0 && <Alert severity="warning">Some per-interval expenses are assigned to intervals outside the previewed range. Update interval numbers or change the timeframe.</Alert>}
+                                            <Button startIcon={<AddIcon />} onClick={addPerIntervalExpense} variant="outlined">Add Per-Interval Expense</Button>
+                                            <Typography variant="caption">
+                                                Tip: Add expenses that occur in specific intervals. Interval 1 = first {frequency === 'weekly' ? 'week' : frequency === 'biweekly' ? 'two weeks' : 'month'}, etc.
+                                            </Typography>
+                                            {validatePerInterval().length > 0 && <Alert severity="warning">Some expenses have interval numbers outside the range. Please adjust the interval numbers.</Alert>}
                                         </Stack>
                                     )}
 
@@ -367,7 +384,7 @@ const ProjectionsCard = () => {
                     )}
                 </Box>
             )}
-        </Paper>
+        </Box>
     );
 };
 
@@ -377,19 +394,19 @@ const ProjectedResults = ({ savingsGoal, timeframe, frequency, startDate, endDat
     const { months, totalMonthlyExp, totalExpensesOverPeriod, intervals, netToSave, perInterval } = computeTotals();
 
     return (
-        <Paper sx={{ p: 2 }}>
-            <Typography variant="h6">Projected Savings</Typography>
-            <Stack spacing={1} sx={{ mt: 1 }}>
-                <Typography>
+        <Paper sx={{ p: 1.5 }}>
+            <Typography variant="h6" sx={{ fontSize: '1.1rem' }}>Projected Savings</Typography>
+            <Stack spacing={0.5} sx={{ mt: 0.5 }}>
+                <Typography sx={{ fontSize: '0.9rem' }}>
                     From <strong>{startDate.toLocaleDateString()}</strong> to <strong>{endDate ? endDate.toLocaleDateString() : 'N/A'}</strong> ({months} months)
                 </Typography>
 
-                <Typography>Goal: <strong>${savingsGoal.toFixed(2)}</strong></Typography>
-                <Typography>Monthly expenses total: <strong>${totalMonthlyExp.toFixed(2)}</strong></Typography>
-                <Typography>Total expenses over period: <strong>${totalExpensesOverPeriod.toFixed(2)}</strong></Typography>
-                <Typography>Net to save (goal - expenses): <strong>${netToSave.toFixed(2)}</strong></Typography>
-                <Typography>Saving frequency: <strong>{frequency}</strong> — intervals: <strong>{intervals}</strong></Typography>
-                <Typography>You need to save <strong>${perInterval.toFixed(2)}</strong> per <strong>{frequency}</strong> to meet the net target.</Typography>
+                <Typography sx={{ fontSize: '0.9rem' }}>Goal: <strong>${savingsGoal.toFixed(2)}</strong></Typography>
+                <Typography sx={{ fontSize: '0.9rem' }}>Monthly expenses total: <strong>${totalMonthlyExp.toFixed(2)}</strong></Typography>
+                <Typography sx={{ fontSize: '0.9rem' }}>Total expenses over period: <strong>${totalExpensesOverPeriod.toFixed(2)}</strong></Typography>
+                <Typography sx={{ fontSize: '0.9rem' }}>Net to save (goal - expenses): <strong>${netToSave.toFixed(2)}</strong></Typography>
+                <Typography sx={{ fontSize: '0.9rem' }}>Saving frequency: <strong>{frequency}</strong> — intervals: <strong>{intervals}</strong></Typography>
+                <Typography sx={{ fontSize: '0.9rem' }}>You need to save <strong>${perInterval.toFixed(2)}</strong> per <strong>{frequency}</strong> to meet the net target.</Typography>
 
                 {netToSave < 0 && (
                     <Typography color="error">Warning: projected expenses exceed goal by <strong>${Math.abs(netToSave).toFixed(2)}</strong>.</Typography>

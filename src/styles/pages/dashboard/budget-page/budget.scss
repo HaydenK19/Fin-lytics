@@ -1,10 +1,6 @@
+// Remove old grid constraints to allow full-width layout
+
 .page-container {
-  .budget-content {
-    display: grid;
-    grid-template-columns: 1fr 2fr; // left column (4 cols equivalent) and right column (8 cols equivalent)
-    gap: 20px;
-    padding: 0; // remove extra inner padding so left column can be flush
-  }
   .left-col {
     display: flex;
     flex-direction: column;

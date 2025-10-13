@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { Box, Grid, Paper, Typography, Button, IconButton, Tooltip, Stack, List, ListItem, ListItemText, Divider, TextField } from "@mui/material";
+import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
+import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import "../../styles/pages/dashboard/budget-page/budget.scss";
 import axios from "axios";
 import VisualCard from "./cards/visual-data.jsx";
 import ProjectionsCard from "./cards/projections.jsx";
-import WeeklyOverview from "../budget/WeeklyOverview.jsx";
+import FinancialCalendar from "../budget/WeeklyOverview.jsx";
 import TransactionCard from "./cards/transactions.jsx";
 import EditTransactions from "./popups/edit-transactions.jsx";
 import ManageBudgets from "./popups/man-budget.jsx";
@@ -168,13 +170,81 @@ const MyAccounts = () => {
   );
 };
 
+// Carousel component for My Accounts, Recent Transactions, Data Analytics
+const CardCarousel = () => {
+  const [activeCard, setActiveCard] = useState(0);
+  
+  const cards = [
+    {
+      title: "My Accounts",
+      component: <MyAccounts />
+    },
+    {
+      title: "Recent Transactions", 
+      component: <TransactionCard />
+    },
+    {
+      title: "Data Analytics",
+      component: <VisualCard />
+    }
+  ];
+
+  const nextCard = () => {
+    setActiveCard((prev) => (prev + 1) % cards.length);
+  };
+
+  const prevCard = () => {
+    setActiveCard((prev) => (prev - 1 + cards.length) % cards.length);
+  };
+
+  return (
+    <Paper elevation={3} sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
+      <Typography variant="h6" sx={{ mb: 1 }}>{cards[activeCard].title}</Typography>
+      
+      <Box sx={{ mb: 1 }}>
+        {cards[activeCard].component}
+      </Box>
+      
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, pt: 1, borderTop: 1, borderColor: 'divider' }}>
+        <IconButton onClick={prevCard} size="small">
+          <ArrowBackIosNewIcon fontSize="small" />
+        </IconButton>
+        
+        <Box sx={{ display: 'flex', gap: 0.5 }}>
+          {cards.map((_, index) => (
+            <Box
+              key={index}
+              onClick={() => setActiveCard(index)}
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                backgroundColor: index === activeCard ? 'primary.main' : 'grey.300',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s'
+              }}
+            />
+          ))}
+        </Box>
+        
+        <IconButton onClick={nextCard} size="small">
+          <ArrowForwardIosIcon fontSize="small" />
+        </IconButton>
+      </Box>
+    </Paper>
+  );
+};
+
 const Budget = () => {
   const [isEditTransactionsOpen, setIsEditTransactionsOpen] = useState(false);
   const [isManageBudgetsOpen, setIsManageBudgetsOpen] = useState(false);
   const [isEditAccountsOpen, setIsEditAccountsOpen] = useState(false);
 
+  // Simple test to see if the component renders at all
+  console.log("Budget component is rendering");
+
   return (
-    <Box className="page-container" sx={{ padding: "20px" }}>
+    <Box sx={{ padding: "20px", width: '100%', maxWidth: '100vw', minHeight: '100vh', overflowX: 'hidden', overflowY: 'auto', boxSizing: 'border-box' }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
         <Typography variant="h4" gutterBottom>Budget Manager</Typography>
 
@@ -187,46 +257,29 @@ const Budget = () => {
         </Stack>
       </Box>
 
-      <Grid container spacing={3} className="budget-content">
-        <Grid item xs={12} md={4} className="left-col">
-          <Paper elevation={3} className="myaccounts-card tall-card" sx={{ p: 0 }}>
-            <Box sx={{ px: 2, pt: 1, pb: 1 }}>
-              <Typography variant="h6">My Accounts</Typography>
-            </Box>
-            <MyAccounts />
-          </Paper>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%', maxWidth: 'calc(100vw - 40px)', boxSizing: 'border-box' }}>
+        {/* Financial Calendar - spans entire width, taller */}
+        <Paper elevation={3} className="calendar-card" sx={{ p: 0, minHeight: 400 }}>
+          <Box sx={{ px: 2, pt: 1, pb: 1 }}>
+            <Typography variant="h6">Financial Calendar</Typography>
+          </Box>
+          <FinancialCalendar />
+        </Paper>
 
-          <Paper elevation={3} className="transactions-card small-card" sx={{ mt: 2, p: 0 }}>
-            <Box sx={{ px: 2, pt: 1, pb: 1 }}>
-              <Typography variant="h6">Recent Transactions</Typography>
-            </Box>
-            <TransactionCard />
-          </Paper>
+        {/* 1x2 fixed-width layout: Carousel (1/3) | Budget Projections (2/3) */}
+        <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
+          <Box sx={{ width: 'calc(33.333% - 16px)', flexShrink: 0 }}>
+            <CardCarousel />
+          </Box>
 
-          <Paper elevation={3} className="visual-card small-card" sx={{ mt: 2, p: 0 }}>
-            <Box sx={{ px: 2, pt: 1, pb: 1 }}>
-              <Typography variant="h6">Data Analytics</Typography>
-            </Box>
-            <VisualCard />
-          </Paper>
-        </Grid>
-
-        <Grid item xs={12} md={8} className="right-col">
-          <Paper elevation={3} className="week-card tall-card" sx={{ p: 0 }}>
-            <Box sx={{ px: 2, pt: 1, pb: 1 }}>
-              <Typography variant="h6">Weekly Overview</Typography>
-            </Box>
-            <WeeklyOverview />
-          </Paper>
-
-          <Paper elevation={3} className="projections-card tall-card" sx={{ mt: 2, p: 0 }}>
-            <Box sx={{ px: 2, pt: 1, pb: 1 }}>
-              <Typography variant="h6">Budget Projections</Typography>
-            </Box>
-            <ProjectionsCard />
-          </Paper>
-        </Grid>
-      </Grid>
+          <Box sx={{ width: 'calc(66.667% - 8px)', flexShrink: 0 }}>
+            <Paper elevation={3} className="projections-card" sx={{ p: 2, width: '100%' }}>
+              <Typography variant="h6" sx={{ mb: 1 }}>Budget Projections</Typography>
+              <ProjectionsCard />
+            </Paper>
+          </Box>
+        </Box>
+      </Box>
 
       {isEditTransactionsOpen && (
         <EditTransactions onClose={() => setIsEditTransactionsOpen(false)} />

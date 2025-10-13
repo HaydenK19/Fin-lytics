@@ -97,7 +97,7 @@ const VisualCard = () => {
     };
 
     return (
-        <Paper elevation={1} sx={{ p: 2 }} className="visual-card">
+        <Box sx={{ p: 2 }} className="visual-card">
             <Box sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 {/* <Typography variant="h6">Data Analytics</Typography> */}
                 <Typography variant="caption" color="text.secondary">Category distribution</Typography>
@@ -112,7 +112,7 @@ const VisualCard = () => {
             {pieChartData && <Pie data={pieChartData} options={chartOptions} />}
 
             {error && <Alert severity="warning" sx={{ mt: 2 }}>{error}</Alert>}
-        </Paper>
+        </Box>
     );
 };
 

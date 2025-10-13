@@ -90,6 +90,7 @@ class Plaid_Transactions(Base):
     category = Column(String(100))
     merchant_name = Column(String(255))
     date = Column(Date)
+    frequency = Column(String(20), nullable=True)  # For recurring transactions: 'weekly', 'monthly', etc.
     created_at = Column(DateTime, default=datetime.utcnow)
     bank_account = relationship("Plaid_Bank_Account", back_populates="transactions")
     transaction_categories = relationship(

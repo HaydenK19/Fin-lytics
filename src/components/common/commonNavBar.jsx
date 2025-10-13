@@ -43,7 +43,7 @@ const DbNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
       try {
         const token = localStorage.getItem("token");
         if (token) {
-          const response = await fetch("/api/user", {
+          const response = await fetch("http://localhost:8000/", {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (!response.ok) {
