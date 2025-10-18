@@ -1,10 +1,11 @@
 import "./app.scss";
 import React, { useState, useEffect, createContext } from "react";
+import axios from "axios";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 
 import Intropage from "./pages/intropage/Intropage";
-import Dashboard from "./pages/Dashboard";
+import Dashboard from "./pages/dashboard/Dashboard";
 import NoPage from "./pages/NoPage";
 import About from "./pages/about/About";
 
@@ -100,21 +101,26 @@ const App = () => {
   return (
     <ThemeProvider theme={theme}>
       <BrowserRouter>
-        {isAuthenticated ? (
-          <Routes>
-            <Route path="/*" element={<Dashboard isAuthenticated={isAuthenticated} setIsAuthenticated={setIsAuthenticated}/>} /> 
-          </Routes>
-        ) : (
-          <>
-            <IntroNavbar />
+        <UserContext.Provider value={{ settings, setSettings, userInfo, setUserInfo }}>
+          {isAuthenticated ? (
             <Routes>
-              <Route path="/" element={<Intropage setIsAuthenticated={setIsAuthenticated} />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/login" element={<Intropage setIsAuthenticated={setIsAuthenticated} />} />
-              <Route path="*" element={<NoPage />} />
+              <Route
+                path="/*"
+                element={<Dashboard isAuthenticated={isAuthenticated} setIsAuthenticated={setIsAuthenticated}/>}
+              />
             </Routes>
-          </>
-        )}
+          ) : (
+            <>
+              <IntroNavbar />
+              <Routes>
+                <Route path="/" element={<Intropage setIsAuthenticated={setIsAuthenticated} />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/login" element={<Intropage setIsAuthenticated={setIsAuthenticated} />} />
+                <Route path="*" element={<NoPage />} />
+              </Routes>
+            </>
+          )}
+        </UserContext.Provider>
       </BrowserRouter>
     </ThemeProvider>
   );
