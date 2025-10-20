@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { Box, Grid, Paper, Typography, IconButton, Button, List, ListItem, ListItemText, Divider, Drawer, ToggleButton, ToggleButtonGroup, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Select, MenuItem, FormControl, InputLabel, Chip } from '@mui/material';
-import AddTransactionDialog from './popups/AddTransactionDialog';
+import AddTransactionDialog from './popups/add-transaction';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 
@@ -9,8 +9,8 @@ const formatISO = (d) => d.toISOString().slice(0,10);
 
 function startOfWeek(date) {
   const d = new Date(date);
-  const day = d.getDay(); // 0 Sun - 6 Sat
-  const diff = day; // Sunday as start
+  const day = d.getDay(); // 0=Sun & 6=Sat
+  const diff = day; // sunday as start of week rather than monday
   d.setDate(d.getDate() - diff);
   d.setHours(0,0,0,0);
   return d;
@@ -52,7 +52,6 @@ export default function FinancialCalendar() {
   // fetch for a given range
   const fetchRange = async (start, end) => {
     const key = `${formatISO(start)}_${formatISO(end)}`;
-    // If cached, populate immediately for perceived speed
     if (cache[key]) {
       setEventsByDate(cache[key]);
       // still trigger a background refresh
@@ -96,7 +95,7 @@ export default function FinancialCalendar() {
     }
   };
 
-  // Week fetch
+  // current week fetch
   useEffect(() => {
     if (mode !== 'week') return;
     const start = weekStart;
@@ -104,7 +103,7 @@ export default function FinancialCalendar() {
     fetchRange(start, end);
   }, [weekStart, mode]);
 
-  // Month fetch
+  // current month fetch
   useEffect(() => {
     if (mode !== 'month') return;
     const start = startOfMonth(monthBase);
@@ -154,7 +153,7 @@ export default function FinancialCalendar() {
       }
       weeks.push(week);
       
-      // If the first day of this week is already past the end of the month, break
+      // if the first day of this week is already past the end of the month, break
       if (week[0] > last) break;
     }
     return weeks;
@@ -348,7 +347,6 @@ export default function FinancialCalendar() {
         </Box>
       )}
 
-      {/* Upcoming transactions component - moved after calendar */}
       <Paper elevation={1} sx={{ p: 2, mt: 2, backgroundColor: 'background.paper' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
           <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

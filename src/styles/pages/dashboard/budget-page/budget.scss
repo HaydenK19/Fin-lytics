@@ -1,5 +1,3 @@
-// Remove old grid constraints to allow full-width layout
-
 .page-container {
   .left-col {
     display: flex;
@@ -30,7 +28,6 @@
     }
   }
 
-  // header QuickAccess toolbar (when moved into header)
   > .MuiBox-root, .page-container-header {
     display: flex;
     align-items: center;
@@ -122,10 +119,7 @@
   }
 }
 
-/* Force a little extra space at the top of the projections card so labels aren't clipped. */
 .projections-card {
-  padding-top: 22px !important; /* override inline sx padding */
-
   .card-body {
     margin-top: 6px; /* nudge body contents down a bit */
   }

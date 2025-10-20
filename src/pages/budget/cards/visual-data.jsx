@@ -8,14 +8,12 @@ import Alert from '@mui/material/Alert';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Pie } from "react-chartjs-2";
 
-// Register chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const VisualCard = () => {
     const [pieChartData, setPieChartData] = useState(null);
     const [error, setError] = useState(null);
 
-    // Get the user ID from the token
     const getUserIdFromToken = () => {
         const token = localStorage.getItem("token");
         if (!token) return null;
@@ -28,7 +26,6 @@ const VisualCard = () => {
         }
     };
 
-    // Function to fetch categories from the backend
     const fetchPieChartData = () => {
         const userId = getUserIdFromToken();
         if (!userId) {
@@ -96,11 +93,29 @@ const VisualCard = () => {
         },
     };
 
+    const refreshBankData = async () => {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        try {
+            await axios.post("http://localhost:8000/refresh_bank_data", {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            // refresh pie chart data after bank data refresh
+            setTimeout(() => fetchPieChartData(), 1000);
+        } catch (err) {
+            console.error("Error refreshing bank data:", err);
+        }
+    };
+
     return (
         <Box sx={{ p: 2 }} className="visual-card">
             <Box sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 {/* <Typography variant="h6">Data Analytics</Typography> */}
                 <Typography variant="caption" color="text.secondary">Category distribution</Typography>
+                <button onClick={refreshBankData} style={{ fontSize: '10px', padding: '4px 8px' }}>
+                    Refresh Data
+                </button>
             </Box>
 
             {!pieChartData && !error && (

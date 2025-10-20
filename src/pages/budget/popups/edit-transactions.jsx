@@ -25,7 +25,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import CancelIcon from '@mui/icons-material/Cancel';
 import DeleteIcon from '@mui/icons-material/Delete';
 import axios from "axios";
-import AddTransactionDialog from "./AddTransactionDialog";
+import AddTransactionDialog from "./add-transaction";
 
 const EditTransactions = ({ onClose }) => {
     const [transactions, setTransactions] = useState([]);
@@ -282,7 +282,7 @@ const EditTransactions = ({ onClose }) => {
                                             </Stack>
                                         </Box>
                                     ) : (
-                                        // Read-only mode
+                                        // read-only mode
                                         <>
                                             <ListItemText
                                                 primary={

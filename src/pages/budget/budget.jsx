@@ -36,7 +36,6 @@ const QuickAccess = ({ onEditTransactions, onManageBudgets, onEditAccounts }) =>
   );
 }
 
-// MyAccounts component (MUI-based) — preserves existing fetch/save logic
 const MyAccounts = () => {
   const [balances, setBalances] = useState({
     checking: { balance_amount: 0, previous_balance: 0 },
@@ -51,25 +50,81 @@ const MyAccounts = () => {
     const fetchBalances = async () => {
       try {
         const token = localStorage.getItem("token");
-        const response = await axios.get("http://localhost:8000/balances/", {
-          headers: { Authorization: `Bearer ${token}` },
-          withCredentials: true,
-        });
+        
+        // Try to get Plaid balances first
+        try {
+          const response = await axios.get("http://localhost:8000/user_balances/", {
+            headers: { Authorization: `Bearer ${token}` },
+            withCredentials: true,
+          });
 
-        const balancesObj = response.data.reduce((acc, balance) => {
-          acc[balance.balance_name] = {
-            balance_amount: balance.balance_amount,
-            previous_balance: balance.previous_balance
+          // Handle the user_balances API response structure
+          const { plaid_balances, cash_balance } = response.data;
+          
+          // Group Plaid balances by subtype
+          const checking = plaid_balances.filter(acc => acc.subtype === "checking")
+            .reduce((sum, acc) => sum + (acc.balance || 0), 0);
+          const savings = plaid_balances.filter(acc => acc.subtype === "savings")
+            .reduce((sum, acc) => sum + (acc.balance || 0), 0);
+
+          const balancesObj = {
+            checking: { balance_amount: checking, previous_balance: 0 },
+            savings: { balance_amount: savings, previous_balance: 0 },
+            cash: { balance_amount: cash_balance, previous_balance: 0 }
           };
-          return acc;
-        }, {});
+          
+          setBalances(balancesObj);
+          setEditedBalances({
+            checking: checking.toString(),
+            savings: savings.toString(),
+            cash: cash_balance.toString()
+          });
+          console.log("Successfully loaded Plaid balances");
+        } catch (plaidError) {
+          // If Plaid fails (400 = not connected, 500 = server error), fall back to manual balances
+          console.log("Plaid not available, falling back to manual balances:", plaidError.response?.status || plaidError.message);
+          
+          try {
+            const response = await axios.get("http://localhost:8000/balances/", {
+              headers: { Authorization: `Bearer ${token}` },
+              withCredentials: true,
+            });
 
-        setBalances(balancesObj);
-        setEditedBalances({
-          checking: balancesObj.checking?.balance_amount?.toString() || '0',
-          savings: balancesObj.savings?.balance_amount?.toString() || '0',
-          cash: balancesObj.cash?.balance_amount?.toString() || '0'
-        });
+            const balancesObj = response.data.reduce((acc, balance) => {
+              acc[balance.balance_name] = {
+                balance_amount: balance.balance_amount,
+                previous_balance: balance.previous_balance
+              };
+              return acc;
+            }, {});
+            
+            // Ensure all three account types exist with default values if not in database
+            const defaultBalances = {
+              checking: balancesObj.checking || { balance_amount: 0, previous_balance: 0 },
+              savings: balancesObj.savings || { balance_amount: 0, previous_balance: 0 },
+              cash: balancesObj.cash || { balance_amount: 0, previous_balance: 0 }
+            };
+            
+            setBalances(defaultBalances);
+            setEditedBalances({
+              checking: defaultBalances.checking.balance_amount.toString(),
+              savings: defaultBalances.savings.balance_amount.toString(),
+              cash: defaultBalances.cash.balance_amount.toString()
+            });
+            console.log("Successfully loaded manual balances:", defaultBalances);
+          } catch (manualError) {
+            console.error("Failed to load manual balances:", manualError);
+            // If both fail, set default values
+            const defaultBalances = {
+              checking: { balance_amount: 0, previous_balance: 0 },
+              savings: { balance_amount: 0, previous_balance: 0 },
+              cash: { balance_amount: 0, previous_balance: 0 }
+            };
+            setBalances(defaultBalances);
+            setEditedBalances({ checking: '0', savings: '0', cash: '0' });
+            console.log("Using default balances:", defaultBalances);
+          }
+        }
       } catch (error) {
         if (error.response && error.response.status === 401) {
           console.error("Unauthorized: Redirecting to login.");
@@ -170,7 +225,6 @@ const MyAccounts = () => {
   );
 };
 
-// Carousel component for My Accounts, Recent Transactions, Data Analytics
 const CardCarousel = () => {
   const [activeCard, setActiveCard] = useState(0);
   
@@ -198,14 +252,19 @@ const CardCarousel = () => {
   };
 
   return (
-    <Paper elevation={3} sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
-      <Typography variant="h6" sx={{ mb: 1 }}>{cards[activeCard].title}</Typography>
+    <Paper elevation={3} sx={{ 
+      p: 0,
+      boxShadow: '0px 2px 4px -1px rgba(0,0,0,0.2), 0px 4px 5px 0px rgba(0,0,0,0.14), 0px 1px 10px 0px rgba(0,0,0,0.12) !important'
+    }}>
+      <Box sx={{ px: 2, pt: 1, pb: 1 }}>
+        <Typography variant="h6">{cards[activeCard].title}</Typography>
+      </Box>
       
-      <Box sx={{ mb: 1 }}>
+      <Box sx={{ px: 2, pb: 1 }}>
         {cards[activeCard].component}
       </Box>
       
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, pt: 1, borderTop: 1, borderColor: 'divider' }}>
+      <Box sx={{ px: 2, pb: 1, pt: 1, borderTop: 1, borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
         <IconButton onClick={prevCard} size="small">
           <ArrowBackIosNewIcon fontSize="small" />
         </IconButton>
@@ -240,8 +299,7 @@ const Budget = () => {
   const [isManageBudgetsOpen, setIsManageBudgetsOpen] = useState(false);
   const [isEditAccountsOpen, setIsEditAccountsOpen] = useState(false);
 
-  // Simple test to see if the component renders at all
-  console.log("Budget component is rendering");
+  // console.log("Budget component is rendering");
 
   return (
     <Box sx={{ padding: "20px", width: '100%', maxWidth: '100vw', minHeight: '100vh', overflowX: 'hidden', overflowY: 'auto', boxSizing: 'border-box' }}>
@@ -258,23 +316,43 @@ const Budget = () => {
       </Box>
 
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%', maxWidth: 'calc(100vw - 40px)', boxSizing: 'border-box' }}>
-        {/* Financial Calendar - spans entire width, taller */}
-        <Paper elevation={3} className="calendar-card" sx={{ p: 0, minHeight: 400 }}>
+        <Paper elevation={3} sx={{ 
+          p: 0,
+          boxShadow: '0px 2px 4px -1px rgba(0,0,0,0.2), 0px 4px 5px 0px rgba(0,0,0,0.14), 0px 1px 10px 0px rgba(0,0,0,0.12) !important'
+        }}>
           <Box sx={{ px: 2, pt: 1, pb: 1 }}>
             <Typography variant="h6">Financial Calendar</Typography>
           </Box>
           <FinancialCalendar />
         </Paper>
 
-        {/* 1x2 fixed-width layout: Carousel (1/3) | Budget Projections (2/3) */}
-        <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
-          <Box sx={{ width: 'calc(33.333% - 16px)', flexShrink: 0 }}>
+        <Box sx={{ 
+          display: 'flex', 
+          gap: 2, 
+          alignItems: 'flex-start',
+          width: '100%',
+          maxWidth: '100%',
+          overflow: 'hidden'
+        }}>
+          <Box sx={{ 
+            flex: '0 0 300px', 
+            minWidth: 0,
+            maxWidth: '300px',
+            margin: 1
+          }}>
             <CardCarousel />
           </Box>
 
-          <Box sx={{ width: 'calc(66.667% - 8px)', flexShrink: 0 }}>
-            <Paper elevation={3} className="projections-card" sx={{ p: 2, width: '100%' }}>
-              <Typography variant="h6" sx={{ mb: 1 }}>Budget Projections</Typography>
+          <Box sx={{ 
+            flex: '1 1 auto',
+            minWidth: 0,
+            overflow: 'visible',
+            margin: 1
+          }}>
+            <Paper elevation={3} sx={{ 
+              p: 0,
+              boxShadow: '0px 2px 4px -1px rgba(0,0,0,0.2), 0px 4px 5px 0px rgba(0,0,0,0.14), 0px 1px 10px 0px rgba(0,0,0,0.12) !important'
+            }}>
               <ProjectionsCard />
             </Paper>
           </Box>

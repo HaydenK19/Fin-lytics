@@ -30,11 +30,11 @@ def generate_recurring_transactions(recurring_transaction, start_date, end_date)
     """
     Generate future instances of a recurring transaction within the date range.
     
-    DESIGN CHOICE: We chose to implement recurring transactions as a core feature
-    because it allows users to:
+    It allows users to:
+
     1. Project future expenses and income
     2. Create budgets based on predictable recurring items
-    3. Manipulate the Plaid_Transactions table with synthetic future data
+    3. Manipulate the Plaid_Transactions table with synthetic future data (TBD RIGHT NOW)
     
     This encapsulates the budgeter branch's basic functionality while extending
     it with advanced financial planning capabilities.
@@ -45,17 +45,17 @@ def generate_recurring_transactions(recurring_transaction, start_date, end_date)
     current_date = recurring_transaction.date
     frequency = getattr(recurring_transaction, 'frequency', None)
     
-    # Skip if no frequency (not a recurring transaction)
+    # skip if no frequency (not a recurring transaction)
     if not frequency:
         print(f"[RECURRING] No frequency found for transaction {recurring_transaction.transaction_id}")
         return []
     
     print(f"[RECURRING] Processing {frequency} transaction from {start_date} to {end_date}")
     
-    # Generate future instances
+    # generate future instances
     while current_date <= end_date:
         if current_date >= start_date:
-            # Create a transaction-like dict for the recurring instance
+            # create a transaction-like dict for the recurring instance
             instance = {
                 "transaction_id": f"{recurring_transaction.transaction_id}-{current_date.isoformat()}",
                 "account_id": recurring_transaction.account_id,
@@ -70,7 +70,7 @@ def generate_recurring_transactions(recurring_transaction, start_date, end_date)
             generated.append(instance)
             print(f"[RECURRING] Generated instance for {current_date}")
         
-        # Calculate next occurrence
+        # calculate next occurrence
         if frequency == 'weekly':
             current_date += timedelta(weeks=1)
         elif frequency == 'biweekly':
@@ -82,16 +82,16 @@ def generate_recurring_transactions(recurring_transaction, start_date, end_date)
         elif frequency == 'yearly' and HAS_DATEUTIL:
             current_date += relativedelta(years=1)
         elif frequency in ['monthly', 'quarterly', 'yearly'] and not HAS_DATEUTIL:
-            # Fallback for monthly/quarterly/yearly without dateutil
+            # fallback for monthly/quarterly/yearly without dateutil (Approximate)
             if frequency == 'monthly':
-                current_date += timedelta(days=30)  # Approximate
+                current_date += timedelta(days=30)  
             elif frequency == 'quarterly':
-                current_date += timedelta(days=90)  # Approximate
+                current_date += timedelta(days=90)  
             elif frequency == 'yearly':
-                current_date += timedelta(days=365)  # Approximate
+                current_date += timedelta(days=365)  
         else:
             print(f"[RECURRING] Unknown frequency: {frequency}")
-            break  # Unknown frequency
+            break 
     
     print(f"[RECURRING] Generated {len(generated)} recurring instances")
     return generated
@@ -105,22 +105,13 @@ async def get_user_transactions(
 ):
     """
     Fetch the user's transactions from Plaid and the database.
-    
-    DESIGN CHOICE: We combine both approaches for maximum functionality:
-    1. Keep flexible date range parameters (dev branch advantage)
-    2. Add comprehensive debugging (budgeter branch advantage) 
-    3. Maintain graceful error handling for missing Plaid tokens
-    4. Support recurring transactions for budget projections
-    
-    This allows full manipulation of the Plaid_Transactions table while
-    encapsulating the basic functionality from budgeter branch.
     """
     try:
-        print(f"[TRANSACTIONS] User received: {user}")  # Debug from budgeter branch
+        print(f"[TRANSACTIONS] User received: {user}")  # debug from budgeter branch
         db_user = db.query(Users).filter(Users.id == user["id"]).first()
-        print(f"[TRANSACTIONS] Database user found: {db_user is not None}")  # Debug
+        print(f"[TRANSACTIONS] Database user found: {db_user is not None}")  # DEbug
 
-        # Handle date parameters with defaults (dev branch flexibility)
+        # handle date parameters with defaults (dev branch flexibility)
         if end_date:
             end_dt = datetime.fromisoformat(end_date).date()
         else:
@@ -134,8 +125,7 @@ async def get_user_transactions(
         print(f"[TRANSACTIONS] Date range: {start_dt} to {end_dt}")
 
         transactions = []
-        # Graceful handling: Only attempt Plaid call if user has linked a Plaid access token
-        # This combines budgeter's strict validation with dev's graceful handling
+        # handling: only attempt Plaid call if user has linked a Plaid access token
         if db_user and db_user.plaid_access_token:
             try:
                 decrypted_access_token = decrypt_token(db_user.plaid_access_token)
@@ -353,7 +343,7 @@ async def create_transaction(
                 print(f"[CREATE_TRANSACTION] Created manual account: {manual_account_id}")
             acct_id = manual.account_id
 
-        # Create Plaid_Transactions row with advanced features
+        # create Plaid_Transactions row with advanced features
         transaction_data = {
             "transaction_id": payload["transaction_id"],
             "account_id": acct_id,
@@ -364,7 +354,7 @@ async def create_transaction(
             "date": datetime.fromisoformat(payload["date"]).date()
         }
         
-        # Advanced feature: Support recurring transactions for budget projections
+        # support recurring transactions for budget projections
         if payload.get("frequency") and hasattr(Plaid_Transactions, 'frequency'):
             transaction_data["frequency"] = payload.get("frequency")
             print(f"[CREATE_TRANSACTION] Added recurring frequency: {payload.get('frequency')}")

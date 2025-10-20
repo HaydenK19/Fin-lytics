@@ -21,28 +21,35 @@ def get_db():
 
 db_dependency = Annotated[Session, Depends(get_db)]
 
-# Gets the sum of expenses per category
+# gets the sum of expenses per category 
 def get_total_expenses_per_category(user_id: int, db: Session):
     categories = get_user_categories(user_id, db)
     category_expenses = {}
 
     for category in categories:
-        # Get all transactions for this user's accounts that are linked to this category
-        # Join Plaid_Transactions -> Plaid_Bank_Account -> User, and filter by category
-        transactions = db.query(Plaid_Transactions).join(
-            Plaid_Bank_Account, 
-            Plaid_Transactions.account_id == Plaid_Bank_Account.account_id
-        ).join(
-            Transaction_Category_Link,
-            Plaid_Transactions.transaction_id == Transaction_Category_Link.transaction_id
-        ).filter(
-            Plaid_Bank_Account.user_id == user_id,
-            Transaction_Category_Link.category_id == category["id"]
-        ).all()
-        
-        # Calculate total expenses (use absolute value for expenses)
-        total = sum(abs(transaction.amount) for transaction in transactions)
-        category_expenses[category["name"]] = total
+        try:
+            # get all transactions for this user's accounts that are linked to this category
+            # join Plaid_Transactions -> Plaid_Bank_Account -> User, and filter by category
+            # only select the columns we need to get rid of frequency column issues
+            transactions = db.query(
+                Plaid_Transactions.amount
+            ).join(
+                Plaid_Bank_Account, 
+                Plaid_Transactions.account_id == Plaid_Bank_Account.account_id
+            ).join(
+                Transaction_Category_Link,
+                Plaid_Transactions.transaction_id == Transaction_Category_Link.transaction_id
+            ).filter(
+                Plaid_Bank_Account.user_id == user_id,
+                Transaction_Category_Link.category_id == category["id"]
+            ).all()
+            
+            # calculate total expenses (use absolute value for expenses)
+            total = sum(abs(transaction.amount) for transaction in transactions if transaction.amount)
+            category_expenses[category["name"]] = total
+        except Exception as e:
+            print(f"Error processing category {category['name']}: {str(e)}")
+            category_expenses[category["name"]] = 0
 
     return category_expenses
 

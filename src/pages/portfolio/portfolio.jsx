@@ -13,7 +13,7 @@ const Portfolio = () => {
 
   return (
     <div className="portfolio-page">
-      <h2 className="section-title">Portfolio</h2>
+      <h2 className="section-title">Portfolio Overview</h2>
 
       <div className="card-grid">
         <div className="card value-card">

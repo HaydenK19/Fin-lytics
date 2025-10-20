@@ -74,6 +74,9 @@ async def get_user_balances(
         # Use jsonable_encoder to ensure the response is JSON serializable
         from fastapi.encoders import jsonable_encoder
         return jsonable_encoder({"plaid_balances": plaid_balances, "cash_balance": cash_balance})
+    except HTTPException as http_exc:
+        # Re-raise HTTP exceptions (like 400 for Plaid not linked) without converting to 500
+        raise http_exc
     except Exception as e:
         print("Error in /user_balances/ endpoint:", str(e))  # debug
         raise HTTPException(status_code=500, detail="Internal Server Error")

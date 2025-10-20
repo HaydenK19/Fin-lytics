@@ -15,8 +15,8 @@ const Dashboard = ({ isAuthenticated, setIsAuthenticated }) => {
         <Sidebar setIsAuthenticated={setIsAuthenticated}/>
         <div className="content-area">
           <Routes>
+            <Route path="/" element={<Portfolio />} />
             <Route path="/budget" element={<Budget/>} />
-            <Route path="/portfolio" element={<Portfolio />} />
             <Route path="/stock" element={<Stock />} />
           </Routes>
         </div>

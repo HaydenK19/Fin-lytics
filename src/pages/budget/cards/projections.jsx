@@ -163,7 +163,11 @@ const ProjectionsCard = () => {
     };
 
     return (
-        <Box className="projections-card" sx={{ padding: 1.5, overflow: 'hidden' }}>
+        <Box className="projections-card" sx={{ 
+            padding: 2, 
+            overflow: 'hidden'
+        }}>
+            <Typography variant="h6" sx={{ mb: 1 }}>Budget Projections</Typography>
             <Box className="card-header" sx={{ mb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Tabs value={tabIndex} onChange={handleTabChange} aria-label="projections tabs">
                     <Tab label="Basic" />

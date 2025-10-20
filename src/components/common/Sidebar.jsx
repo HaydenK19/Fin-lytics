@@ -5,6 +5,7 @@ import {
   List,
   ListItem,
   ListItemText,
+  ListItemIcon,
   Divider,
   Dialog,
   DialogContent,
@@ -13,6 +14,11 @@ import {
   Box,
   Typography,
 } from "@mui/material";
+import {
+  BackupTable as BackupTableIcon,
+  AutoGraph as AutoGraphIcon,
+  AccountBalanceWallet as AccountBalanceIcon,
+} from "@mui/icons-material";
 import { styled } from "@mui/system";
 import axios from "axios";
 
@@ -89,12 +95,12 @@ const Sidebar = ({ setIsAuthenticated }) => {
         anchor="left"
         sx={{
           zIndex: 1000, 
-          width: 240,
+          width: 180,
           flexShrink: 0,
           position: "relative", 
           paddingTop: "64px",
           [`& .MuiDrawer-paper`]: {
-            width: 240,
+            width: 180,
             boxSizing: "border-box",
             backgroundColor: "primary.main",
             color: "white",
@@ -106,21 +112,25 @@ const Sidebar = ({ setIsAuthenticated }) => {
         <Box sx={{ overflow: "hidden" }}>
           <List>
             <StyledListItem button component={Link} to="/">
+              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
+                <BackupTableIcon />
+              </ListItemIcon>
               <ListItemText
                 primary={<Typography sx={{ fontSize: "1rem" }}>Overview</Typography>}
               />
             </StyledListItem>
             <StyledListItem button component={Link} to="/Stock">
+              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
+                <AutoGraphIcon />
+              </ListItemIcon>
               <ListItemText
                 primary={<Typography sx={{ fontSize: "1rem" }}>Stock AI</Typography>}
               />
             </StyledListItem>
-            <StyledListItem button component={Link} to="/portfolio">
-              <ListItemText
-                primary={<Typography sx={{ fontSize: "1rem" }}>Portfolio</Typography>}
-              />
-            </StyledListItem>
             <StyledListItem button component={Link} to="/Budget">
+              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
+                <AccountBalanceIcon />
+              </ListItemIcon>
               <ListItemText
                 primary={<Typography sx={{ fontSize: "1rem" }}>Budgeter</Typography>}
               />
