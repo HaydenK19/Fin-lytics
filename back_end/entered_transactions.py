@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Annotated
 from database import SessionLocal
-from models import User_Transactions, Transaction_Category_Link, Users
+from models import Plaid_Transactions, Transaction_Category_Link, Users
 from auth import get_current_user
 from pydantic import BaseModel
 
@@ -19,6 +19,7 @@ def get_db():
     finally:
         db.close()
 
+# Type aliases for dependencies
 db_dependency = Annotated[Session, Depends(get_db)]
 user_dependency = Annotated[dict, Depends(get_current_user)]
 
@@ -40,34 +41,59 @@ class UserTransactionUpdate(BaseModel):
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def add_user_transaction(
     data: UserTransactionCreate,
-    user: user_dependency,
-    db: db_dependency
+    user: Annotated[dict, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)]
 ):
     """Create a new user-entered transaction"""
     try:
-        # Verify the user is creating a transaction for themselves
-        if user["id"] != data.user_id:
-            raise HTTPException(status_code=403, detail="Cannot create transaction for another user")
+        from models import Plaid_Bank_Account
+        import uuid
         
-        new_transaction = User_Transactions(
-            user_id=data.user_id,
-            date=data.date,
+        # Find or create a manual account for the user
+        manual_account = db.query(Plaid_Bank_Account).filter(
+            Plaid_Bank_Account.user_id == user["id"],
+            Plaid_Bank_Account.name == 'Manual Entries'
+        ).first()
+        
+        if not manual_account:
+            # Create a manual account for user-entered transactions
+            manual_account_id = f"manual-{user['id']}-{uuid.uuid4().hex[:8]}"
+            manual_account = Plaid_Bank_Account(
+                user_id=user["id"],
+                account_id=manual_account_id,
+                name='Manual Entries',
+                type='manual',
+                subtype='manual',
+                current_balance=0.0,
+                available_balance=0.0,
+                currency='USD'
+            )
+            db.add(manual_account)
+            db.commit()
+            db.refresh(manual_account)
+        
+        # Create the transaction
+        transaction_id = f"manual-{uuid.uuid4().hex}"
+        new_transaction = Plaid_Transactions(
+            transaction_id=transaction_id,
+            account_id=manual_account.account_id,
             amount=data.amount,
-            description=data.description,
-            category_id=data.category_id
+            currency='USD',
+            merchant_name=data.description,  # Use description as merchant name
+            date=data.date
         )
         db.add(new_transaction)
         db.commit()
         db.refresh(new_transaction)
 
-        # Create User_Transaction_Category_Link
-        from models import User_Transaction_Category_Link
-        new_link = User_Transaction_Category_Link(
-            transaction_id=new_transaction.transaction_id,
-            category_id=data.category_id
-        )
-        db.add(new_link)
-        db.commit()
+        # Create Transaction_Category_Link if category_id is provided
+        if hasattr(data, 'category_id') and data.category_id:
+            new_link = Transaction_Category_Link(
+                transaction_id=new_transaction.transaction_id,
+                category_id=data.category_id
+            )
+            db.add(new_link)
+            db.commit()
 
         return new_transaction.to_dict()
     except Exception as e:
@@ -76,25 +102,34 @@ async def add_user_transaction(
 
 @router.get("/", status_code=status.HTTP_200_OK)
 async def get_user_transactions(
-    user: user_dependency,
-    db: db_dependency
+    user: Annotated[dict, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)]
 ):
     """Get all user-entered transactions for the authenticated user"""
     try:
-        transactions = db.query(User_Transactions).filter(User_Transactions.user_id == user["id"]).all()
+        # Join Plaid_Transactions with Plaid_Bank_Account to filter by user_id
+        from models import Plaid_Bank_Account
+        transactions = db.query(Plaid_Transactions).join(
+            Plaid_Bank_Account, 
+            Plaid_Transactions.account_id == Plaid_Bank_Account.account_id
+        ).filter(Plaid_Bank_Account.user_id == user["id"]).all()
         return [transaction.to_dict() for transaction in transactions]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching transactions: {str(e)}")
 
 @router.get("/combined", status_code=status.HTTP_200_OK)
 async def get_combined_transactions(
-    user: user_dependency,
-    db: db_dependency
+    user: Annotated[dict, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)]
 ):
     """Get both Plaid and user-entered transactions for the authenticated user"""
     try:
         # Get user-entered transactions
-        user_transactions = db.query(User_Transactions).filter(User_Transactions.user_id == user["id"]).all()
+        from models import Plaid_Bank_Account
+        user_transactions = db.query(Plaid_Transactions).join(
+            Plaid_Bank_Account, 
+            Plaid_Transactions.account_id == Plaid_Bank_Account.account_id
+        ).filter(Plaid_Bank_Account.user_id == user["id"]).all()
         user_transactions_data = [transaction.to_dict() for transaction in user_transactions]
         for transaction in user_transactions_data:
             transaction["source"] = "user_entered"
@@ -102,16 +137,12 @@ async def get_combined_transactions(
         # Get Plaid transactions if available
         plaid_transactions_data = []
         try:
-            from models import Plaid_Transactions, Plaid_Bank_Account
             db_user = db.query(Users).filter(Users.id == user["id"]).first()
             if db_user and db_user.plaid_access_token:
-                db_transactions = db.query(Plaid_Transactions).filter(
-                    Plaid_Transactions.account_id.in_(
-                        db.query(Plaid_Bank_Account.account_id).filter(
-                            Plaid_Bank_Account.user_id == user["id"]
-                        )
-                    )
-                ).all()
+                db_transactions = db.query(Plaid_Transactions).join(
+                    Plaid_Bank_Account, 
+                    Plaid_Transactions.account_id == Plaid_Bank_Account.account_id
+                ).filter(Plaid_Bank_Account.user_id == user["id"]).all()
                 for t in db_transactions:
                     plaid_tx = {
                         "transaction_id": t.transaction_id,
@@ -145,14 +176,18 @@ async def get_combined_transactions(
 async def update_user_transaction(
     transaction_id: int,
     data: UserTransactionUpdate,
-    user: user_dependency,
-    db: db_dependency
+    user: Annotated[dict, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)]
 ):
     """Update a user-entered transaction"""
     try:
-        transaction = db.query(User_Transactions).filter(
-            User_Transactions.transaction_id == transaction_id,
-            User_Transactions.user_id == user["id"] 
+        from models import Plaid_Bank_Account
+        transaction = db.query(Plaid_Transactions).join(
+            Plaid_Bank_Account, 
+            Plaid_Transactions.account_id == Plaid_Bank_Account.account_id
+        ).filter(
+            Plaid_Transactions.transaction_id == transaction_id,
+            Plaid_Bank_Account.user_id == user["id"] 
         ).first()
         
         if not transaction:
@@ -189,14 +224,18 @@ async def update_user_transaction(
 @router.delete("/{transaction_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user_transaction(
     transaction_id: int,
-    user: user_dependency,
-    db: db_dependency
+    user: Annotated[dict, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)]
 ):
     """Delete a user-entered transaction"""
     try:
-        transaction = db.query(User_Transactions).filter(
-            User_Transactions.transaction_id == transaction_id,
-            User_Transactions.user_id == user["id"]
+        from models import Plaid_Bank_Account
+        transaction = db.query(Plaid_Transactions).join(
+            Plaid_Bank_Account, 
+            Plaid_Transactions.account_id == Plaid_Bank_Account.account_id
+        ).filter(
+            Plaid_Transactions.transaction_id == transaction_id,
+            Plaid_Bank_Account.user_id == user["id"]
         ).first()
         if not transaction:
             raise HTTPException(status_code=404, detail="Transaction not found")

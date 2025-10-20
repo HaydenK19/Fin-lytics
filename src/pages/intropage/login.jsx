@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-<<<<<<< HEAD
 import { Box, Button, TextField, Typography, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 
@@ -14,18 +13,6 @@ const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuth
     const [number, setNumber] = useState("");
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
-=======
-import './login.scss';
-
-const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuthenticated }) => {
-    const [isSigningUp, setIsSigningUp] = useState(true);
-    const [firstName, setFirstName] = useState("");
-    const [lastName, setLastName] = useState("");
-    const [email, setEmail] = useState("");
-    const [username, setUsername] = useState("");
-    const [password, setPassword] = useState("");
-    const [number, setNumber] = useState("");
->>>>>>> origin/budgeter
     const [confirmPassword, setConfirmPassword] = useState("");
     const navigate = useNavigate();
 
@@ -36,11 +23,7 @@ const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuth
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-<<<<<<< HEAD
         if (isSigningUp && password !== confirmPassword) {
-=======
-        if (isSigningUp && password != confirmPassword) {
->>>>>>> origin/budgeter
             alert("Passwords do not match!");
             return;
         }
@@ -51,23 +34,13 @@ const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuth
                     first_name: firstName,
                     last_name: lastName,
                     email: email,
-<<<<<<< HEAD
                     phone_number: number,
                     username: username,
-=======
-                    username: username,
-                    phone_number: number,
->>>>>>> origin/budgeter
                     password: password,
                 });
                 console.log("Sign-up successful:", response.data);
             }
 
-<<<<<<< HEAD
-=======
-            
-            // Login (either after signup or direct sign-in)
->>>>>>> origin/budgeter
             const loginResponse = await axios.post(
                 "http://localhost:8000/auth/token",
                 new URLSearchParams({
@@ -83,7 +56,6 @@ const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuth
             navigate("/dashboard");
         } catch (error) {
             console.error(
-<<<<<<< HEAD
                 "Authentication error:",
                 error.response ? error.response.data : error.message
             );
@@ -250,73 +222,6 @@ const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuth
                 </Typography>
             )}
         </Box>
-=======
-              "Authentication error:",
-              error.response ? error.response.data : error.message
-            );
-            if (
-              error.response &&
-              error.response.status === 400 &&
-              error.response.data.detail === "User with this email already exists"
-            ) {
-              alert(
-                "User with this email already exists. Please log in or use a different email."
-              );
-            } else if (
-              error.response &&
-              error.response.status === 400 &&
-              error.response.data.detail ===
-                "User with this phone number already exists"
-            ) {
-              alert(
-                "User with this phone number already exists. Please log in or use a different phone number."
-              );
-            } else {
-              alert(
-                "Authentication failed. Please check your credentials and try again."
-              );
-            }
-          }
-    };
-
-    return (
-        <div className='login-block'>
-            <div className="login">
-                <button className="close-btn" onClick={toggleLoginBlock}>x</button>
-                <h2>{isSigningUp ? 'Sign Up' : 'Log In'}</h2>
-                
-                <div className={`login-container ${isSigningUp ? 'expanded' : 'collapsed'}`}>
-                    <form onSubmit={handleSubmit}>
-
-                        {!isSigningUp && (
-                          <>
-                          <input type="username" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
-                          </>
-                        )}
-
-                        {isSigningUp && (
-                            <>
-                            <input type="text" placeholder="First Name" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
-                            <input type="text" placeholder="Last Name" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
-                            <input type="username" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
-                            <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-                            <input type="tel" placeholder="Phone Number" value={number} onChange={(e) => setNumber(e.target.value)} required />
-                            </>
-                        )}
-                        <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-                        {isSigningUp && (
-                            <input type="password" placeholder="Confirm Password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
-                        )}
-                        <button type="submit" className='submit-btn'>{isSigningUp ? 'Sign Up' : 'Sign In'}</button>
-                    </form>
-                </div>
-
-                <p onClick={() => setIsSigningUp(!isSigningUp)} className="toggle-text">
-                    {isSigningUp ? "Already have an account? Log In" : "Don't have an account? Sign Up"}
-                </p>
-            </div>
-        </div>
->>>>>>> origin/budgeter
     );
 };
 
