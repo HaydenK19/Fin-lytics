@@ -1,202 +1,357 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import "./stock.scss";
+import {
+  Box,
+  Container,
+  Typography,
+  TextField,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  CircularProgress,
+} from "@mui/material";
+
+import SearchBar from "../../../components/common/SearchBar";
 
 function Stock() {
-  const [predictions, setPredictions] = useState([]);
-  const [loading, setLoading] = useState(false);
+  // ---- State variables ----
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // List of stock tickers to generate predictions for
-  const tickers = [
-    "NVDA", "MSFT", "AAPL", "AMZN", "GOOGL",
-    "META", "BRK.B", "TSLA", "AVGO", "PLTR", "VOO",
-  ];
-
+  const [gainers, setGainers] = useState([]);
+  const [losers, setLosers] = useState([]);
+  const [usedHistorical, setUsedHistorical] = useState(false);
+  const [predictions, setPredictions] = useState([]);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const navigate = useNavigate();
+  const companyCache = useRef({});
 
-  async function generatePredictions() {
+  async function fetchMarketMovers(forceRefresh = false) {
     try {
+      const cachedGainers = localStorage.getItem("cachedGainers");
+      const cachedLosers = localStorage.getItem("cachedLosers");
+      const cachedTime = localStorage.getItem("cachedMoversTime");
+
+      // Check cache age (minutes)
+      const cacheIsValid =
+        !forceRefresh &&
+        cachedGainers &&
+        cachedLosers &&
+        cachedTime &&
+        (Date.now() - Number(cachedTime)) / 1000 / 60 < 5;
+
+      if (cacheIsValid) {
+        setGainers(JSON.parse(cachedGainers));
+        setLosers(JSON.parse(cachedLosers));
+        setUsedHistorical(false);
+        setLastUpdated(new Date(Number(cachedTime)));
+        return;
+      }
+
       setLoading(true);
-      const res = await fetch("http://localhost:8000/stocks/predictions/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({ tickers }),
-      });
 
-      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-      const data = await res.json();
+      // Fetch from backend (FastAPI)
+      const [gRes, lRes] = await Promise.all([
+        fetch("http://127.0.0.1:8000/stocks/gainers", {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }),
+        fetch("http://127.0.0.1:8000/stocks/losers", {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }),
+      ]);
 
-      // Backend returns { predictions: [...] }
-      setPredictions(data.predictions);
+      if (!gRes.ok || !lRes.ok) throw new Error("Failed to fetch market movers");
+
+      const [gainersData, losersData] = await Promise.all([
+        gRes.json(),
+        lRes.json(),
+      ]);
+
+      // Update state and cache
+      setGainers(gainersData);
+      setLosers(losersData);
+      setUsedHistorical(false);
+      setLastUpdated(new Date());
+      localStorage.setItem("cachedGainers", JSON.stringify(gainersData));
+      localStorage.setItem("cachedLosers", JSON.stringify(losersData));
+      localStorage.setItem("cachedMoversTime", String(Date.now()));
     } catch (err) {
+      console.error("Market movers fetch error:", err);
       setError(err.message);
+
+      // Fallback to stale cache if available
+      const cachedGainers = localStorage.getItem("cachedGainers");
+      const cachedLosers = localStorage.getItem("cachedLosers");
+      if (cachedGainers && cachedLosers) {
+        setGainers(JSON.parse(cachedGainers));
+        setLosers(JSON.parse(cachedLosers));
+        setUsedHistorical(false);
+      }
     } finally {
       setLoading(false);
     }
   }
 
-  // ✅ helper to handle row clicks
-  const handleRowClick = (ticker) => {
-    navigate(`${ticker}`);
-  };
+
+  async function fetchChronosPredictions(forceRefresh = false) {
+    try {
+      setLoading(true);
+
+      // Retrieve cache
+      const cached = localStorage.getItem("chronosPredictions");
+      const cachedTime = localStorage.getItem("chronosPredictionsTime");
+
+      const cacheIsValid =
+        !forceRefresh &&
+        cached &&
+        cachedTime &&
+        (Date.now() - Number(cachedTime)) / 1000 / 60 < 5;
+
+      // Use cache if valid
+      if (cacheIsValid) {
+        setPredictions(JSON.parse(cached));
+        setLastUpdated(new Date(Number(cachedTime)));
+        return;
+      }
+
+      // Fetch from backend
+      const res = await fetch("http://127.0.0.1:8000/stocks/predictions/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          tickers: ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "BRK.B", "TSLA"],
+        }),
+      });
+
+      if (!res.ok) throw new Error("Prediction fetch failed");
+
+      const data = await res.json();
+
+      const formatted = data.predictions.map((p) => [
+        p.ticker,
+        `$${p.predicted_price?.toFixed(2)}`,
+        p.confidence_low && p.confidence_high
+          ? `$${p.confidence_low?.toFixed(2)} – $${p.confidence_high?.toFixed(2)}`
+          : "—",
+        new Date(p.prediction_time ?? Date.now()).toLocaleString(),
+      ]);
+
+      // Update UI + cache
+      setPredictions(formatted);
+      setLastUpdated(new Date());
+      localStorage.setItem("chronosPredictions", JSON.stringify(formatted));
+      localStorage.setItem("chronosPredictionsTime", String(Date.now()));
+    } catch (err) {
+      console.error("Prediction fetch error:", err);
+      setError(err.message);
+
+      // Fallback to stale cache if available
+      const cached = localStorage.getItem("chronosPredictions");
+      if (cached) {
+        setPredictions(JSON.parse(cached));
+        setLastUpdated(
+          new Date(Number(localStorage.getItem("chronosPredictionsTime") ?? Date.now()))
+        );
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+
+  /** Auto-refresh predictions every 5 minutes */
+  useEffect(() => {
+    fetchChronosPredictions();
+    const interval = setInterval(() => fetchChronosPredictions(true), 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  /** Auto-refresh gainers and losers every 5 minutes */
+  useEffect(() => {
+    fetchMarketMovers();
+    const interval = setInterval(() => fetchMarketMovers(true), 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+
+
+  const handleRowClick = (ticker) => navigate(`${ticker}`);
 
   return (
-    <div className="stock-page">
-      <h2 className="stock-page__title">Stock Predictions Dashboard</h2>
+    <Container maxWidth="lg" sx={{ mt: 4 }}>
+      <Typography variant="h4" fontWeight={700} textAlign="center" gutterBottom>
+        Stock Predictions Dashboard
+      </Typography>
 
-      {/* ===== Search Bar ===== */}
-      <div className="stock-page__search-container">
-        <input
-          type="text"
-          className="stock-page__search"
-          placeholder="Search"
-        />
-      </div>
+      {/* --- Search bar --- */}
+      <Box display="flex" justifyContent="center" mb={3}>
+        <SearchBar placeholder="Search or jump to stock..." />
+      </Box>
 
-      {/* ===== Table 1: Chronos Predictions ===== */}
-      <h3 style={{ textAlign: "center", marginTop: "1.5rem" }}>
-        Chronos Predictions (10 Stocks)
-      </h3>
-      <table className="stock-page__table">
-        <thead>
-          <tr>
-            <th>Ticker</th>
-            <th>Predicted Price</th>
-            <th>Confidence Range</th>
-            <th>Prediction Time</th>
-          </tr>
-        </thead>
-        <tbody>
-          {/* ✅ Added clickable Link for ticker names */}
-          <tr onClick={() => handleRowClick('NVDA')}>
-            <td>NVDA</td>
-            <td>$942.21</td><td>$910.00 – $970.50</td><td>10/01/2025, 6:30 PM</td>
-          </tr>
-          <tr onClick={() => handleRowClick('MSFT')}>
-            <td>MSFT</td>
-            <td>$415.32</td><td>$400.12 – $429.76</td><td>10/01/2025, 6:30 PM</td>
-          </tr>
-          <tr onClick={() => handleRowClick('AAPL')}>
-            <td>AAPL</td>
-            <td>$210.44</td><td>$204.11 – $217.09</td><td>10/01/2025, 6:30 PM</td>
-          </tr>
-          <tr onClick={() => handleRowClick('AMZN')}>
-            <td>AMZN</td>
-            <td>$178.89</td><td>$171.35 – $186.10</td><td>10/01/2025, 6:30 PM</td>
-          </tr>
-          <tr onClick={() => handleRowClick('GOOGL')}>
-            <td>GOOGL</td>
-            <td>$152.77</td><td>$148.45 – $158.20</td><td>10/01/2025, 6:30 PM</td>
-          </tr>
-          <tr onClick={() => handleRowClick('META')}>
-            <td>META</td>
-            <td>$495.66</td><td>$480.90 – $512.22</td><td>10/01/2025, 6:30 PM</td>
-          </tr>
-          <tr onClick={() => handleRowClick('BRK.B')}>
-            <td>BRK.B</td>
-            <td>$402.15</td><td>$395.88 – $410.23</td><td>10/01/2025, 6:30 PM</td>
-          </tr>
-          <tr onClick={() => handleRowClick('TSLA')}>
-            <td>TSLA</td>
-            <td>$263.05</td><td>$250.80 – $276.44</td><td>10/01/2025, 6:30 PM</td>
-          </tr>
-          <tr onClick={() => handleRowClick('AVGO')}>
-            <td>AVGO</td>
-            <td>$1,412.75</td><td>$1,385.20 – $1,442.60</td><td>10/01/2025, 6:30 PM</td>
-          </tr>
-          <tr onClick={() => handleRowClick('PLTR')}>
-            <td>PLTR</td>
-            <td>$27.38</td><td>$25.22 – $29.44</td><td>10/01/2025, 6:30 PM</td>
-          </tr>
-        </tbody>
-      </table>
+      {loading && (
+        <Box display="flex" justifyContent="center" mt={3}>
+          <CircularProgress />
+        </Box>
+      )}
+      {error && (
+        <Typography color="error" align="center">
+          {error}
+        </Typography>
+      )}
 
-      {/* ===== Table 2: Top 5 Gainers ===== */}
-      <h3 style={{ textAlign: "center", marginTop: "2rem" }}>Top 5 Gainers (Today)</h3>
-      <table className="stock-page__table">
-        <thead>
-          <tr>
-            <th>Ticker</th>
-            <th>Company</th>
-            <th>Price</th>
-            <th>Change %</th>
-            <th>Volume</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr onClick={() => handleRowClick('SMCI')}>
-            <td>SMCI</td>
-            <td>Super Micro Computer</td><td>$1,216.70</td>
-            <td className="stock-page__positive">+8.73%</td><td>4,820,000</td>
-          </tr>
-          <tr onClick={() => handleRowClick('NVDA')}>
-            <td>NVDA</td>
-            <td>NVIDIA Corp</td><td>$950.24</td>
-            <td className="stock-page__positive">+6.42%</td><td>75,000,000</td>
-          </tr>
-          <tr onClick={() => handleRowClick('TSLA')}>
-            <td>TSLA</td>
-            <td>Tesla Inc</td><td>$265.77</td>
-            <td className="stock-page__positive">+5.13%</td><td>103,000,000</td>
-          </tr>
-          <tr onClick={() => handleRowClick('AMZN')}>
-            <td>AMZN</td>
-            <td>Amazon.com Inc</td><td>$175.11</td>
-            <td className="stock-page__positive">+4.58%</td><td>92,000,000</td>
-          </tr>
-          <tr onClick={() => handleRowClick('META')}>
-            <td>META</td>
-            <td>Meta Platforms</td><td>$505.12</td>
-            <td className="stock-page__positive">+4.32%</td><td>43,000,000</td>
-          </tr>
-        </tbody>
-      </table>
+      {/* --- Chronos Predictions --- */}
+      <Typography variant="h6" textAlign="center" mt={4}>
+        Chronos Predictions (Auto-Refreshed)
+      </Typography>
 
-      {/* ===== Table 3: Top 5 Losers ===== */}
-      <h3 style={{ textAlign: "center", marginTop: "2rem" }}>Top 5 Losers (Today)</h3>
-      <table className="stock-page__table">
-        <thead>
-          <tr>
-            <th>Ticker</th>
-            <th>Company</th>
-            <th>Price</th>
-            <th>Change %</th>
-            <th>Volume</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr onClick={() => handleRowClick('INTC')}>
-            <td>INTC</td>
-            <td>Intel Corp</td><td>$32.18</td>
-            <td className="stock-page__negative">-3.44%</td><td>60,100,000</td>
-          </tr>
-          <tr onClick={() => handleRowClick('AMD')}>
-            <td>AMD</td>
-            <td>Advanced Micro Devices</td><td>$103.45</td>
-            <td className="stock-page__negative">-2.92%</td><td>54,300,000</td>
-          </tr>
-          <tr onClick={() => handleRowClick('CSCO')}>
-            <td>CSCO</td>
-            <td>Cisco Systems</td><td>$51.22</td>
-            <td className="stock-page__negative">-2.35%</td><td>48,000,000</td>
-          </tr>
-          <tr onClick={() => handleRowClick('NFLX')}>
-            <td>NFLX</td>
-            <td>Netflix Inc</td><td>$412.15</td>
-            <td className="stock-page__negative">-2.12%</td><td>21,900,000</td>
-          </tr>
-          <tr onClick={() => handleRowClick('PYPL')}>
-            <td>PYPL</td>
-            <td>PayPal Holdings</td><td>$60.33</td>
-            <td className="stock-page__negative">-1.98%</td><td>18,700,000</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+      {lastUpdated && (
+        <Typography
+          variant="body2"
+          align="center"
+          sx={{ color: "#666", fontStyle: "italic", mt: 0.5 }}
+        >
+          Last updated: {lastUpdated.toLocaleTimeString()}
+        </Typography>
+      )}
+
+      <TableContainer component={Paper} sx={{ mt: 2 }}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell align="center">Ticker</TableCell>
+              <TableCell align="center">Predicted Price</TableCell>
+              <TableCell align="center">Confidence Range</TableCell>
+              <TableCell align="center">Prediction Time</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {predictions.length > 0 ? (
+              predictions.map(([ticker, price, range, time]) => (
+                <TableRow
+                  key={ticker}
+                  hover
+                  sx={{ cursor: "pointer" }}
+                  onClick={() => handleRowClick(ticker)}
+                >
+                  <TableCell align="center">{ticker}</TableCell>
+                  <TableCell align="center">{price}</TableCell>
+                  <TableCell align="center">{range}</TableCell>
+                  <TableCell align="center">{time}</TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell align="center" colSpan={4}>
+                  <Typography sx={{ color: "#777", py: 2 }}>
+                    No Chronos predictions available right now.
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      {/* --- Gainers --- */}
+      <Typography variant="h6" textAlign="center" mt={5}>
+        Top 5 Gainers ({usedHistorical ? "Last Market Day" : "Today"})
+      </Typography>
+
+      <TableContainer component={Paper} sx={{ mt: 2 }}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell align="center">Ticker</TableCell>
+              <TableCell align="center">Company</TableCell>
+              <TableCell align="center">Price</TableCell>
+              <TableCell align="center">Change ($)</TableCell>
+              <TableCell align="center">Change (%)</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {gainers.map((s) => (
+              <TableRow
+                key={s.symbol}
+                hover
+                onClick={() => handleRowClick(s.symbol)}
+                sx={{ cursor: "pointer" }}
+              >
+                <TableCell align="center">{s.symbol}</TableCell>
+                <TableCell align="center">{s.name}</TableCell>
+                <TableCell align="center">${s.price?.toFixed(2)}</TableCell>
+                <TableCell
+                  align="center"
+                  sx={{ color: s.change >= 0 ? "#2e7d32" : "#c62828", fontWeight: 600 }}
+                >
+                  {s.change > 0 ? `+${s.change.toFixed(2)}` : s.change.toFixed(2)}
+                </TableCell>
+                <TableCell align="center" sx={{ color: "#2e7d32", fontWeight: 600 }}>
+                  {s.change?.toFixed(1) ?? s.changesPercentage?.toFixed(1)}%
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      {/* --- Losers --- */}
+      <Typography variant="h6" textAlign="center" mt={5}>
+        Top 5 Losers ({usedHistorical ? "Last Market Day" : "Today"})
+      </Typography>
+
+      <TableContainer component={Paper} sx={{ mt: 2, mb: 5 }}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell className="ticker" align="center">Ticker</TableCell>
+              <TableCell className align="center">Company</TableCell>
+              <TableCell align="center">Price</TableCell>
+              <TableCell align="center">Change ($)</TableCell>
+              <TableCell align="center">Change (%)</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {losers.map((s) => (
+              <TableRow
+                key={s.symbol}
+                hover
+                onClick={() => handleRowClick(s.symbol)}
+                sx={{ cursor: "pointer" }}
+              >
+                <TableCell align="center">{s.symbol}</TableCell>
+                <TableCell align="center">{s.name}</TableCell>
+                <TableCell align="center">${s.price?.toFixed(2)}</TableCell>
+                <TableCell
+                  align="center"
+                  sx={{ color: s.change >= 0 ? "#2e7d32" : "#c62828", fontWeight: 600 }}
+                >
+                  {s.change > 0 ? `+${s.change.toFixed(2)}` : s.change.toFixed(2)}
+                </TableCell>
+                <TableCell align="center" sx={{ color: "#c62828", fontWeight: 600 }}>
+                  {s.change?.toFixed(1) ?? s.changesPercentage?.toFixed(1)}%
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      {usedHistorical && (
+        <Typography
+          variant="body2"
+          align="center"
+          sx={{ color: "#666", mb: 3, fontStyle: "italic" }}
+        >
+          Showing results from the last trading day because markets are closed.
+        </Typography>
+      )}
+    </Container>
   );
 }
 
