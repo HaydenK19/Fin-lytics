@@ -288,6 +288,12 @@ async def get_prediction_history(
 
 @router.get("/gainers")
 async def fetch_gainers():
+    """
+    Fetch top 5 gainers.
+    Prioritizes high-value stocks (price >= $80),
+    then mid-tier (20–79), then fallback (<20),
+    always avoiding ETFs and forex/pair symbols.
+    """
     try:
         url = f"{fmp_base_url}/stock_market/gainers"
         params = {"apikey": fmp_api_key}
@@ -295,33 +301,44 @@ async def fetch_gainers():
         response.raise_for_status()
         data = response.json()
 
-        cleaned = []
-        for s in data:
+        def clean_entry(s):
             try:
                 price = float(s.get("price", 0))
-                # Strip "%" and "+" before converting
-                change_pct_str = str(s.get("changesPercentage", "0")).replace("%", "").replace("+", "")
-                change_pct = float(change_pct_str)
                 change = float(s.get("change", 0))
-                volume = int(float(s.get("volume", 0))) if s.get("volume") not in [None, ""] else 0
-            except (TypeError, ValueError):
-                continue
+                pct = float(str(s.get("changesPercentage", "0")).replace("%", "").replace("+", ""))
+                name = s.get("name") or s.get("symbol")
+                symbol = s.get("symbol", "").upper()
 
-            if (
-                price > 1
-                and "ETF" not in (s.get("name") or "")
-                and "." not in (s.get("symbol") or "")
-            ):
-                cleaned.append({
-                    "symbol": s.get("symbol", "").upper(),
-                    "name": s.get("name") or s.get("symbol"),
+                # Filter early for obvious junk
+                if not symbol or "ETF" in (name or "") or any(x in symbol for x in ["/", "="]):
+                    return None
+
+                return {
+                    "symbol": symbol,
+                    "name": name,
                     "price": round(price, 2),
                     "change": round(change, 2),
-                    "changesPercentage": round(change_pct, 2),
-                })
+                    "changesPercentage": round(pct, 2),
+                }
+            except (TypeError, ValueError):
+                return None
 
-        cleaned.sort(key=lambda x: x["changesPercentage"], reverse=True)
-        return cleaned[:5]
+        cleaned = [e for s in data if (e := clean_entry(s))]
+
+        # Split into tiers
+        high = [e for e in cleaned if e["price"] >= 80]
+        mid = [e for e in cleaned if 20 <= e["price"] < 80]
+        low = [e for e in cleaned if e["price"] < 20]
+
+        # Sort gainers descending by percentage change
+        high.sort(key=lambda x: x["changesPercentage"], reverse=True)
+        mid.sort(key=lambda x: x["changesPercentage"], reverse=True)
+        low.sort(key=lambda x: x["changesPercentage"], reverse=True)
+
+        # Combine tiers to always get 5 results
+        combined = (high + mid + low)[:5]
+
+        return combined
 
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch gainers: {str(e)}")
@@ -329,6 +346,12 @@ async def fetch_gainers():
 
 @router.get("/losers")
 async def fetch_losers():
+    """
+    Fetch top 5 losers.
+    Prioritizes high-value stocks (price >= $80),
+    then mid-tier (20–79), then fallback (<20),
+    always avoiding ETFs and forex/pair symbols.
+    """
     try:
         url = f"{fmp_base_url}/stock_market/losers"
         params = {"apikey": fmp_api_key}
@@ -336,35 +359,118 @@ async def fetch_losers():
         response.raise_for_status()
         data = response.json()
 
-        cleaned = []
-        for s in data:
+        def clean_entry(s):
             try:
                 price = float(s.get("price", 0))
-                change_pct_str = str(s.get("changesPercentage", "0")).replace("%", "").replace("+", "")
-                change_pct = float(change_pct_str)
                 change = float(s.get("change", 0))
-                volume = int(float(s.get("volume", 0))) if s.get("volume") not in [None, ""] else 0
-            except (TypeError, ValueError):
-                continue
+                pct = float(str(s.get("changesPercentage", "0")).replace("%", "").replace("+", ""))
+                name = s.get("name") or s.get("symbol")
+                symbol = s.get("symbol", "").upper()
 
-            if (
-                price > 1
-                and "ETF" not in (s.get("name") or "")
-                and "." not in (s.get("symbol") or "")
-            ):
-                cleaned.append({
-                    "symbol": s.get("symbol", "").upper(),
-                    "name": s.get("name") or s.get("symbol"),
+                if not symbol or "ETF" in (name or "") or any(x in symbol for x in ["/", "="]):
+                    return None
+
+                return {
+                    "symbol": symbol,
+                    "name": name,
                     "price": round(price, 2),
                     "change": round(change, 2),
-                    "changesPercentage": round(change_pct, 2),
-                })
+                    "changesPercentage": round(pct, 2),
+                }
+            except (TypeError, ValueError):
+                return None
 
-        cleaned.sort(key=lambda x: x["changesPercentage"])
-        return cleaned[:5]
+        cleaned = [e for s in data if (e := clean_entry(s))]
+
+        # Split into tiers
+        high = [e for e in cleaned if e["price"] >= 80]
+        mid = [e for e in cleaned if 20 <= e["price"] < 80]
+        low = [e for e in cleaned if e["price"] < 20]
+
+        # Sort losers ascending by percentage change
+        high.sort(key=lambda x: x["changesPercentage"])
+        mid.sort(key=lambda x: x["changesPercentage"])
+        low.sort(key=lambda x: x["changesPercentage"])
+
+        combined = (high + mid + low)[:5]
+
+        return combined
 
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch losers: {str(e)}")
+
+
+@router.get("/company/{ticker}")
+async def get_company_snapshot(ticker: str):
+    """
+    Fetch detailed company information for a given ticker.
+
+    Returns:
+        {
+            symbol, companyName, exchange, industry,
+            sector, ceo, marketCap, website, description
+        }
+    """
+    try:
+        url = f"{fmp_base_url}/profile/{ticker.upper()}"
+        params = {"apikey": fmp_api_key}
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+
+        if not data or not isinstance(data, list) or len(data) == 0:
+            raise HTTPException(status_code=404, detail=f"No company profile found for {ticker}")
+
+        company = data[0]
+        return {
+            "symbol": company.get("symbol", ticker.upper()),
+            "companyName": company.get("companyName") or company.get("name") or ticker.upper(),
+            "exchange": company.get("exchangeShortName", ""),
+            "industry": company.get("industry", ""),
+            "sector": company.get("sector", ""),
+            "ceo": company.get("ceo", ""),
+            "marketCap": company.get("mktCap", 0),
+            "website": company.get("website", ""),
+            "description": company.get("description", ""),
+        }
+
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch company snapshot: {str(e)}")
+
+
+@router.get("/news/{ticker}")
+async def get_company_news(ticker: str):
+    """
+    Fetch recent market news articles for a specific ticker.
+    Returns up to 5 latest stories from FMP.
+    Each entry: {title, publishedDate, site, url, image}
+    """
+    try:
+        url = f"{fmp_base_url}/stock_news"
+        params = {"tickers": ticker.upper(), "limit": 5, "apikey": fmp_api_key}
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+
+        if not data or not isinstance(data, list) or len(data) == 0:
+            raise HTTPException(status_code=404, detail=f"No news found for {ticker}")
+
+        cleaned = []
+        for n in data:
+            cleaned.append({
+                "title": n.get("title", ""),
+                "publishedDate": n.get("publishedDate", ""),
+                "site": n.get("site", ""),
+                "url": n.get("url", ""),
+                "image": n.get("image", "")
+            })
+
+        return cleaned[:5]
+
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch news: {str(e)}")
+
+
 
 
 
