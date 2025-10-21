@@ -12,6 +12,9 @@ from typing import List, Optional
 from datetime import datetime, timedelta
 import os
 
+from stock_cache_service import fetch_symbol_from_fmp, fetch_company_snapshot, normalize_ticker_symbol
+
+
 load_dotenv()
 
 router = APIRouter(
@@ -225,6 +228,32 @@ async def generate_immediate_prediction(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate predictions: {str(e)}")
 
+@router.post("/predictions/generate-intervals")
+async def generate_interval_predictions(
+    request: PredictionRequest,
+    user: dict = Depends(get_current_user)
+):
+    """Generate multi-interval predictions (for Stock Insights)."""
+    try:
+        results = []
+        for ticker in request.tickers:
+            preds = prediction_service.make_interval_predictions(ticker)
+            if preds:
+                results.extend(preds)
+            else:
+                results.append({
+                    "ticker": ticker,
+                    "interval": "N/A",
+                    "predicted_price": None,
+                    "change": None,
+                    "error": "Failed to generate prediction"
+                })
+        if not results:
+            raise HTTPException(status_code=404, detail="No predictions generated")
+        return {"predictions": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate interval predictions: {str(e)}")
+
 @router.get("/predictions/history/{ticker}")
 async def get_prediction_history(
     ticker: str,
@@ -260,6 +289,168 @@ async def get_prediction_history(
             db.close()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get prediction history: {str(e)}")
+
+@router.get("/gainers")
+async def fetch_gainers():
+    """
+    Fetch top 5 gainers.
+    Prioritizes high-value stocks (price >= $80),
+    then mid-tier (20–79), then fallback (<20),
+    always avoiding ETFs and forex/pair symbols.
+    """
+    try:
+        url = f"{fmp_base_url}/stock_market/gainers"
+        params = {"apikey": fmp_api_key}
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+
+        def clean_entry(s):
+            try:
+                price = float(s.get("price", 0))
+                change = float(s.get("change", 0))
+                pct = float(str(s.get("changesPercentage", "0")).replace("%", "").replace("+", ""))
+                name = s.get("name") or s.get("symbol")
+                symbol = s.get("symbol", "").upper()
+
+                # Filter early for obvious junk
+                if not symbol or "ETF" in (name or "") or any(x in symbol for x in ["/", "="]):
+                    return None
+
+                return {
+                    "symbol": symbol,
+                    "name": name,
+                    "price": round(price, 2),
+                    "change": round(change, 2),
+                    "changesPercentage": round(pct, 2),
+                }
+            except (TypeError, ValueError):
+                return None
+
+        cleaned = [e for s in data if (e := clean_entry(s))]
+
+        # Split into tiers
+        high = [e for e in cleaned if e["price"] >= 80]
+        mid = [e for e in cleaned if 20 <= e["price"] < 80]
+        low = [e for e in cleaned if e["price"] < 20]
+
+        # Sort gainers descending by percentage change
+        high.sort(key=lambda x: x["changesPercentage"], reverse=True)
+        mid.sort(key=lambda x: x["changesPercentage"], reverse=True)
+        low.sort(key=lambda x: x["changesPercentage"], reverse=True)
+
+        # Combine tiers to always get 5 results
+        combined = (high + mid + low)[:5]
+
+        return combined
+
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch gainers: {str(e)}")
+
+
+@router.get("/losers")
+async def fetch_losers():
+    """
+    Fetch top 5 losers.
+    Prioritizes high-value stocks (price >= $80),
+    then mid-tier (20–79), then fallback (<20),
+    always avoiding ETFs and forex/pair symbols.
+    """
+    try:
+        url = f"{fmp_base_url}/stock_market/losers"
+        params = {"apikey": fmp_api_key}
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+
+        def clean_entry(s):
+            try:
+                price = float(s.get("price", 0))
+                change = float(s.get("change", 0))
+                pct = float(str(s.get("changesPercentage", "0")).replace("%", "").replace("+", ""))
+                name = s.get("name") or s.get("symbol")
+                symbol = s.get("symbol", "").upper()
+
+                if not symbol or "ETF" in (name or "") or any(x in symbol for x in ["/", "="]):
+                    return None
+
+                return {
+                    "symbol": symbol,
+                    "name": name,
+                    "price": round(price, 2),
+                    "change": round(change, 2),
+                    "changesPercentage": round(pct, 2),
+                }
+            except (TypeError, ValueError):
+                return None
+
+        cleaned = [e for s in data if (e := clean_entry(s))]
+
+        # Split into tiers
+        high = [e for e in cleaned if e["price"] >= 80]
+        mid = [e for e in cleaned if 20 <= e["price"] < 80]
+        low = [e for e in cleaned if e["price"] < 20]
+
+        # Sort losers ascending by percentage change
+        high.sort(key=lambda x: x["changesPercentage"])
+        mid.sort(key=lambda x: x["changesPercentage"])
+        low.sort(key=lambda x: x["changesPercentage"])
+
+        combined = (high + mid + low)[:5]
+
+        return combined
+
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch losers: {str(e)}")
+    
+@router.get("/company/{ticker}")
+async def get_company_snapshot(ticker: str):
+    """Return cached or fresh company profile."""
+    clean_ticker = normalize_ticker_symbol(ticker)
+    data = fetch_company_snapshot(clean_ticker)
+    return data
+
+@router.get("/news/{ticker}")
+async def get_company_news(ticker: str):
+    """
+    Fetch recent market news articles for a specific ticker.
+    Returns up to 5 latest stories from FMP.
+    Each entry: {title, publishedDate, site, url, image}
+    """
+    try:
+        url = f"{fmp_base_url}/stock_news"
+        params = {"tickers": ticker.upper(), "limit": 5, "apikey": fmp_api_key}
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+
+        if not data or not isinstance(data, list) or len(data) == 0:
+            raise HTTPException(status_code=404, detail=f"No news found for {ticker}")
+
+        cleaned = []
+        for n in data:
+            cleaned.append({
+                "title": n.get("title", ""),
+                "publishedDate": n.get("publishedDate", ""),
+                "site": n.get("site", ""),
+                "url": n.get("url", ""),
+                "image": n.get("image", "")
+            })
+
+        return cleaned[:5]
+
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch news: {str(e)}")
+
+
+@router.get("/symbol/{ticker}")
+async def get_symbol_with_exchange(ticker: str):
+    """Return TradingView-ready symbol with exchange prefix (cached)."""
+    exchange = fetch_symbol_from_fmp(ticker)
+    tv_ticker = normalize_ticker_symbol(ticker, for_tradingview=True)
+    return {"symbol": f"{exchange}:{tv_ticker}"}
+
+
 
 
 

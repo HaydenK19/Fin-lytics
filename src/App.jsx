@@ -1,15 +1,40 @@
 import "./app.scss";
 import React, { useState, useEffect, createContext } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
 import axios from "axios";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ThemeProvider, createTheme } from '@mui/material/styles';
 
 import Intropage from "./pages/intropage/Intropage";
-import Dashboard from "./pages/dashboard/Dashboard";
-import Stock from "./pages/dashboard/stock/stock";
-import StockInsights from "./pages/dashboard/stock/StockInsights";
+import Dashboard from "./pages/Dashboard";
 import NoPage from "./pages/NoPage";
 import About from "./pages/about/About";
-import IntroNavbar from "./components/navbar/IntroNavbar";
+
+import IntroNavbar from "./components/intro/IntroNavbar";
+
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#749181',
+    },
+    secondary: {
+      main: '#E0C2FF',
+    },
+  },
+  typography: {
+    fontFamily: 'Quicksand, sans-serif',
+  },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          fontFamily: 'Quicksand, sans-serif',
+          fontWeight: 'bold',
+          fontSize: '15px',
+        },
+      },
+    },
+  },
+});
 
 // create context to share across app
 export const UserContext = createContext(null);
@@ -74,42 +99,30 @@ const App = () => {
   }
 
   return (
-    <UserContext.Provider
-      value={{ settings, setSettings, userInfo, setUserInfo }}
-    >
+    <ThemeProvider theme={theme}>
       <BrowserRouter>
-        {isAuthenticated ? (
-          <Routes>
-
-            <Route
-              path="/*"
-              element={
-                <Dashboard
-                  isAuthenticated={isAuthenticated}
-                  setIsAuthenticated={setIsAuthenticated}
-                />
-              }
-            />
-          </Routes>
-        ) : (
-          <>
-            <IntroNavbar />
+        <UserContext.Provider value={{ settings, setSettings, userInfo, setUserInfo }}>
+          {isAuthenticated ? (
             <Routes>
               <Route
-                path="/"
-                element={<Intropage setIsAuthenticated={setIsAuthenticated} />}
+                path="/*"
+                element={<Dashboard isAuthenticated={isAuthenticated} setIsAuthenticated={setIsAuthenticated}/>}
               />
-              <Route path="/about" element={<About />} />
-              <Route
-                path="/login"
-                element={<Intropage setIsAuthenticated={setIsAuthenticated} />}
-              />
-              <Route path="*" element={<NoPage />} />
             </Routes>
-          </>
-        )}
+          ) : (
+            <>
+              <IntroNavbar />
+              <Routes>
+                <Route path="/" element={<Intropage setIsAuthenticated={setIsAuthenticated} />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/login" element={<Intropage setIsAuthenticated={setIsAuthenticated} />} />
+                <Route path="*" element={<NoPage />} />
+              </Routes>
+            </>
+          )}
+        </UserContext.Provider>
       </BrowserRouter>
-    </UserContext.Provider>
+    </ThemeProvider>
   );
 };
 
