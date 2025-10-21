@@ -224,6 +224,32 @@ async def generate_immediate_prediction(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate predictions: {str(e)}")
 
+@router.post("/predictions/generate-intervals")
+async def generate_interval_predictions(
+    request: PredictionRequest,
+    user: dict = Depends(get_current_user)
+):
+    """Generate multi-interval predictions (for Stock Insights)."""
+    try:
+        results = []
+        for ticker in request.tickers:
+            preds = prediction_service.make_interval_predictions(ticker)
+            if preds:
+                results.extend(preds)
+            else:
+                results.append({
+                    "ticker": ticker,
+                    "interval": "N/A",
+                    "predicted_price": None,
+                    "change": None,
+                    "error": "Failed to generate prediction"
+                })
+        if not results:
+            raise HTTPException(status_code=404, detail="No predictions generated")
+        return {"predictions": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate interval predictions: {str(e)}")
+
 @router.get("/predictions/history/{ticker}")
 async def get_prediction_history(
     ticker: str,
@@ -259,6 +285,87 @@ async def get_prediction_history(
             db.close()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get prediction history: {str(e)}")
+
+@router.get("/gainers")
+async def fetch_gainers():
+    try:
+        url = f"{fmp_base_url}/stock_market/gainers"
+        params = {"apikey": fmp_api_key}
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+
+        cleaned = []
+        for s in data:
+            try:
+                price = float(s.get("price", 0))
+                # Strip "%" and "+" before converting
+                change_pct_str = str(s.get("changesPercentage", "0")).replace("%", "").replace("+", "")
+                change_pct = float(change_pct_str)
+                change = float(s.get("change", 0))
+                volume = int(float(s.get("volume", 0))) if s.get("volume") not in [None, ""] else 0
+            except (TypeError, ValueError):
+                continue
+
+            if (
+                price > 1
+                and "ETF" not in (s.get("name") or "")
+                and "." not in (s.get("symbol") or "")
+            ):
+                cleaned.append({
+                    "symbol": s.get("symbol", "").upper(),
+                    "name": s.get("name") or s.get("symbol"),
+                    "price": round(price, 2),
+                    "change": round(change, 2),
+                    "changesPercentage": round(change_pct, 2),
+                })
+
+        cleaned.sort(key=lambda x: x["changesPercentage"], reverse=True)
+        return cleaned[:5]
+
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch gainers: {str(e)}")
+
+
+@router.get("/losers")
+async def fetch_losers():
+    try:
+        url = f"{fmp_base_url}/stock_market/losers"
+        params = {"apikey": fmp_api_key}
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+
+        cleaned = []
+        for s in data:
+            try:
+                price = float(s.get("price", 0))
+                change_pct_str = str(s.get("changesPercentage", "0")).replace("%", "").replace("+", "")
+                change_pct = float(change_pct_str)
+                change = float(s.get("change", 0))
+                volume = int(float(s.get("volume", 0))) if s.get("volume") not in [None, ""] else 0
+            except (TypeError, ValueError):
+                continue
+
+            if (
+                price > 1
+                and "ETF" not in (s.get("name") or "")
+                and "." not in (s.get("symbol") or "")
+            ):
+                cleaned.append({
+                    "symbol": s.get("symbol", "").upper(),
+                    "name": s.get("name") or s.get("symbol"),
+                    "price": round(price, 2),
+                    "change": round(change, 2),
+                    "changesPercentage": round(change_pct, 2),
+                })
+
+        cleaned.sort(key=lambda x: x["changesPercentage"])
+        return cleaned[:5]
+
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch losers: {str(e)}")
+
 
 
 
