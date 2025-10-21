@@ -19,15 +19,30 @@ import StockInfoPanel from "./components/StockInfoPanel";
 import Stock from "./stock";
 
 function StockInsights() {
-  const { ticker } = useParams();
-  const navigate = useNavigate();
+    const { ticker } = useParams();
+    const navigate = useNavigate();
 
-  const [predictions, setPredictions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(null);
+    const [predictions, setPredictions] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [lastUpdated, setLastUpdated] = useState(null);
 
-  const goBack = () => navigate("/stock");
+    const [resolvedSymbol, setResolvedSymbol] = useState(null);
+
+    const goBack = () => navigate("/stock");
+
+    async function fetchResolvedSymbol() {
+        try {
+            const res = await fetch(`http://localhost:8000/stocks/symbol/${ticker}`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            setResolvedSymbol(data.symbol);
+        } catch (err) {
+            console.error("Failed to resolve symbol:", err);
+            setResolvedSymbol(`NASDAQ:${ticker}`); // fallback
+        }
+    }
+
 
   /** Fetch multi-interval AI predictions for this ticker */
   async function fetchPredictions(forceRefresh = false) {
@@ -93,6 +108,7 @@ function StockInsights() {
   }
 
   useEffect(() => {
+    fetchResolvedSymbol();
     fetchPredictions();
     const interval = setInterval(() => fetchPredictions(true), 5 * 60 * 1000);
     return () => clearInterval(interval);
@@ -138,7 +154,7 @@ function StockInsights() {
           }}
         >
           <Box sx={{ width: "100%", height: "100%" }}>
-            <SymbolOverviewChart symbol={`NASDAQ:${ticker}`} theme="light" />
+            <SymbolOverviewChart symbol={resolvedSymbol || `NASDAQ:${ticker}`} theme="light" />
           </Box>
         </Paper>
 

@@ -11,6 +11,9 @@ from typing import List, Optional
 from datetime import datetime, timedelta
 import os
 
+from stock_cache_service import fetch_symbol_from_fmp, fetch_company_snapshot, normalize_ticker_symbol
+
+
 load_dotenv()
 
 router = APIRouter(
@@ -398,45 +401,13 @@ async def fetch_losers():
 
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch losers: {str(e)}")
-
-
+    
 @router.get("/company/{ticker}")
 async def get_company_snapshot(ticker: str):
-    """
-    Fetch detailed company information for a given ticker.
-
-    Returns:
-        {
-            symbol, companyName, exchange, industry,
-            sector, ceo, marketCap, website, description
-        }
-    """
-    try:
-        url = f"{fmp_base_url}/profile/{ticker.upper()}"
-        params = {"apikey": fmp_api_key}
-        response = requests.get(url, params=params, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-
-        if not data or not isinstance(data, list) or len(data) == 0:
-            raise HTTPException(status_code=404, detail=f"No company profile found for {ticker}")
-
-        company = data[0]
-        return {
-            "symbol": company.get("symbol", ticker.upper()),
-            "companyName": company.get("companyName") or company.get("name") or ticker.upper(),
-            "exchange": company.get("exchangeShortName", ""),
-            "industry": company.get("industry", ""),
-            "sector": company.get("sector", ""),
-            "ceo": company.get("ceo", ""),
-            "marketCap": company.get("mktCap", 0),
-            "website": company.get("website", ""),
-            "description": company.get("description", ""),
-        }
-
-    except requests.exceptions.RequestException as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch company snapshot: {str(e)}")
-
+    """Return cached or fresh company profile."""
+    clean_ticker = normalize_ticker_symbol(ticker)
+    data = fetch_company_snapshot(clean_ticker)
+    return data
 
 @router.get("/news/{ticker}")
 async def get_company_news(ticker: str):
@@ -470,6 +441,13 @@ async def get_company_news(ticker: str):
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch news: {str(e)}")
 
+
+@router.get("/symbol/{ticker}")
+async def get_symbol_with_exchange(ticker: str):
+    """Return TradingView-ready symbol with exchange prefix (cached)."""
+    exchange = fetch_symbol_from_fmp(ticker)
+    tv_ticker = normalize_ticker_symbol(ticker, for_tradingview=True)
+    return {"symbol": f"{exchange}:{tv_ticker}"}
 
 
 
