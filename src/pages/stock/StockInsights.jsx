@@ -4,7 +4,6 @@ import {
   Box,
   Container,
   Typography,
-  TextField,
   Button,
   Paper,
   Table,
@@ -14,8 +13,10 @@ import {
   TableBody,
   CircularProgress,
 } from "@mui/material";
-import SymbolOverviewChart from "../../../components/common/tradingview/SymbolOverviewChart";
-import SearchBar from "../../../components/common/SearchBar";
+import SymbolOverviewChart from "../../components/common/tradingview/SymbolOverviewChart";
+import SearchBar from "../../components/common/SearchBar";
+import StockInfoPanel from "./components/StockInfoPanel";
+import Stock from "./stock";
 
 function StockInsights() {
   const { ticker } = useParams();
@@ -28,7 +29,7 @@ function StockInsights() {
 
   const goBack = () => navigate("/stock");
 
-  /** Fetch multi-interval AI predictions for the selected ticker (with cache) */
+  /** Fetch multi-interval AI predictions for this ticker */
   async function fetchPredictions(forceRefresh = false) {
     try {
       setLoading(true);
@@ -39,7 +40,6 @@ function StockInsights() {
       const cached = localStorage.getItem(cacheKey);
       const cachedTime = localStorage.getItem(cacheTimeKey);
 
-      // Use cache if <5min old unless forceRefresh
       if (!forceRefresh && cached && cachedTime) {
         const age = (Date.now() - Number(cachedTime)) / 1000 / 60;
         if (age < 5) {
@@ -50,7 +50,6 @@ function StockInsights() {
         }
       }
 
-      // Fetch new data
       const res = await fetch(
         "http://localhost:8000/stocks/predictions/generate-intervals",
         {
@@ -83,8 +82,6 @@ function StockInsights() {
 
       setPredictions(preds);
       setLastUpdated(new Date().toLocaleTimeString());
-
-      // Save cache
       localStorage.setItem(cacheKey, JSON.stringify(preds));
       localStorage.setItem(cacheTimeKey, String(Date.now()));
     } catch (err) {
@@ -95,7 +92,6 @@ function StockInsights() {
     }
   }
 
-  // === Fetch on mount and auto-refresh every 5 minutes ===
   useEffect(() => {
     fetchPredictions();
     const interval = setInterval(() => fetchPredictions(true), 5 * 60 * 1000);
@@ -105,22 +101,8 @@ function StockInsights() {
   return (
     <Container maxWidth="lg" sx={{ mt: 4 }}>
       {/* ===== Top Controls ===== */}
-      <Box
-        display="flex"
-        justifyContent="space-between"
-        alignItems="center"
-        mb={3}
-      >
-        <Button
-          variant="contained"
-          onClick={goBack}
-          sx={{
-            backgroundColor: "#ebf4ff",
-            color: "#1a1a1a",
-            border: "1px solid #7ea5de",
-            "&:hover": { backgroundColor: "#dbeafe" },
-          }}
-        >
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Button variant="contained" onClick={goBack} >
           ← Back to Stocks
         </Button>
         <SearchBar placeholder="Search or jump to stock..." />
@@ -144,10 +126,11 @@ function StockInsights() {
           sx={{
             flex: 2,
             p: 2,
-            border: "1px solid #7ea5de",
-            backgroundColor: "#f9fbff",
+            border: "1px solid #dcdcdc",
+            backgroundColor: "#ffffff",
             borderRadius: 2,
-            boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
+            boxShadow:
+              "0px 2px 4px -1px rgba(0,0,0,0.1), 0px 4px 5px 0px rgba(0,0,0,0.08), 0px 1px 10px 0px rgba(0,0,0,0.06)",
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
@@ -164,10 +147,11 @@ function StockInsights() {
           sx={{
             flex: 1,
             p: 3,
-            border: "1px solid #7ea5de",
-            backgroundColor: "#f9fbff",
+            border: "1px solid #dcdcdc",
+            backgroundColor: "#ffffff",
             borderRadius: 2,
-            boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
+            boxShadow:
+              "0px 2px 4px -1px rgba(0,0,0,0.1), 0px 4px 5px 0px rgba(0,0,0,0.08), 0px 1px 10px 0px rgba(0,0,0,0.06)",
             height: 400,
             overflowY: "auto",
           }}
@@ -202,9 +186,7 @@ function StockInsights() {
                       <TableCell
                         align="center"
                         sx={{
-                          color: change.startsWith("-")
-                            ? "#d32f2f"
-                            : "#2e7d32",
+                          color: change.startsWith("-") ? "#d32f2f" : "#2e7d32",
                           fontWeight: 600,
                         }}
                       >
@@ -238,6 +220,8 @@ function StockInsights() {
           )}
         </Paper>
       </Box>
+
+      <StockInfoPanel ticker={ticker} />;
     </Container>
   );
 }

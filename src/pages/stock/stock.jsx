@@ -4,7 +4,6 @@ import {
   Box,
   Container,
   Typography,
-  TextField,
   Table,
   TableBody,
   TableCell,
@@ -15,11 +14,12 @@ import {
   CircularProgress,
 } from "@mui/material";
 
-import SearchBar from "../../../components/common/SearchBar";
+import SearchBar from "../../components/common/SearchBar";
 
 function Stock() {
   // ---- State variables ----
-  const [loading, setLoading] = useState(true);
+  const [loadingPredictions, setLoadingPredictions] = useState(true);
+  const [loadingMovers, setLoadingMovers] = useState(true);
   const [error, setError] = useState(null);
   const [gainers, setGainers] = useState([]);
   const [losers, setLosers] = useState([]);
@@ -29,13 +29,14 @@ function Stock() {
   const navigate = useNavigate();
   const companyCache = useRef({});
 
+  /** Fetch top gainers and losers */
   async function fetchMarketMovers(forceRefresh = false) {
     try {
       const cachedGainers = localStorage.getItem("cachedGainers");
       const cachedLosers = localStorage.getItem("cachedLosers");
       const cachedTime = localStorage.getItem("cachedMoversTime");
 
-      // Check cache age (minutes)
+      // Check cache validity (5 min)
       const cacheIsValid =
         !forceRefresh &&
         cachedGainers &&
@@ -51,9 +52,8 @@ function Stock() {
         return;
       }
 
-      setLoading(true);
+      setLoadingMovers(true);
 
-      // Fetch from backend (FastAPI)
       const [gRes, lRes] = await Promise.all([
         fetch("http://127.0.0.1:8000/stocks/gainers", {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
@@ -70,7 +70,6 @@ function Stock() {
         lRes.json(),
       ]);
 
-      // Update state and cache
       setGainers(gainersData);
       setLosers(losersData);
       setUsedHistorical(false);
@@ -82,7 +81,6 @@ function Stock() {
       console.error("Market movers fetch error:", err);
       setError(err.message);
 
-      // Fallback to stale cache if available
       const cachedGainers = localStorage.getItem("cachedGainers");
       const cachedLosers = localStorage.getItem("cachedLosers");
       if (cachedGainers && cachedLosers) {
@@ -91,16 +89,15 @@ function Stock() {
         setUsedHistorical(false);
       }
     } finally {
-      setLoading(false);
+      setLoadingMovers(false);
     }
   }
 
-
+  /** Fetch Chronos predictions */
   async function fetchChronosPredictions(forceRefresh = false) {
     try {
-      setLoading(true);
+      setLoadingPredictions(true);
 
-      // Retrieve cache
       const cached = localStorage.getItem("chronosPredictions");
       const cachedTime = localStorage.getItem("chronosPredictionsTime");
 
@@ -110,14 +107,12 @@ function Stock() {
         cachedTime &&
         (Date.now() - Number(cachedTime)) / 1000 / 60 < 5;
 
-      // Use cache if valid
       if (cacheIsValid) {
         setPredictions(JSON.parse(cached));
         setLastUpdated(new Date(Number(cachedTime)));
         return;
       }
 
-      // Fetch from backend
       const res = await fetch("http://127.0.0.1:8000/stocks/predictions/generate", {
         method: "POST",
         headers: {
@@ -142,7 +137,6 @@ function Stock() {
         new Date(p.prediction_time ?? Date.now()).toLocaleString(),
       ]);
 
-      // Update UI + cache
       setPredictions(formatted);
       setLastUpdated(new Date());
       localStorage.setItem("chronosPredictions", JSON.stringify(formatted));
@@ -151,7 +145,6 @@ function Stock() {
       console.error("Prediction fetch error:", err);
       setError(err.message);
 
-      // Fallback to stale cache if available
       const cached = localStorage.getItem("chronosPredictions");
       if (cached) {
         setPredictions(JSON.parse(cached));
@@ -160,26 +153,23 @@ function Stock() {
         );
       }
     } finally {
-      setLoading(false);
+      setLoadingPredictions(false);
     }
   }
 
+    /** Auto-refresh Chronos predictions every 5 min */
+    useEffect(() => {
+        fetchChronosPredictions();
+        const predInt = setInterval(() => fetchChronosPredictions(true), 5 * 60 * 1000);
+        return () => clearInterval(predInt);
+    }, []);
 
-  /** Auto-refresh predictions every 5 minutes */
-  useEffect(() => {
-    fetchChronosPredictions();
-    const interval = setInterval(() => fetchChronosPredictions(true), 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  /** Auto-refresh gainers and losers every 5 minutes */
-  useEffect(() => {
-    fetchMarketMovers();
-    const interval = setInterval(() => fetchMarketMovers(true), 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-
+    /** Auto-refresh market movers every 5 min */
+    useEffect(() => {
+        fetchMarketMovers();
+        const movInt = setInterval(() => fetchMarketMovers(true), 5 * 60 * 1000);
+        return () => clearInterval(movInt);
+    }, []);
 
   const handleRowClick = (ticker) => navigate(`${ticker}`);
 
@@ -189,16 +179,10 @@ function Stock() {
         Stock Predictions Dashboard
       </Typography>
 
-      {/* --- Search bar --- */}
       <Box display="flex" justifyContent="center" mb={3}>
         <SearchBar placeholder="Search or jump to stock..." />
       </Box>
 
-      {loading && (
-        <Box display="flex" justifyContent="center" mt={3}>
-          <CircularProgress />
-        </Box>
-      )}
       {error && (
         <Typography color="error" align="center">
           {error}
@@ -220,127 +204,145 @@ function Stock() {
         </Typography>
       )}
 
-      <TableContainer component={Paper} sx={{ mt: 2 }}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell align="center">Ticker</TableCell>
-              <TableCell align="center">Predicted Price</TableCell>
-              <TableCell align="center">Confidence Range</TableCell>
-              <TableCell align="center">Prediction Time</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {predictions.length > 0 ? (
-              predictions.map(([ticker, price, range, time]) => (
-                <TableRow
-                  key={ticker}
-                  hover
-                  sx={{ cursor: "pointer" }}
-                  onClick={() => handleRowClick(ticker)}
-                >
-                  <TableCell align="center">{ticker}</TableCell>
-                  <TableCell align="center">{price}</TableCell>
-                  <TableCell align="center">{range}</TableCell>
-                  <TableCell align="center">{time}</TableCell>
-                </TableRow>
-              ))
-            ) : (
+      {loadingPredictions ? (
+        <Box display="flex" justifyContent="center" mt={3}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <TableContainer component={Paper} sx={{ mt: 2 }}>
+          <Table>
+            <TableHead>
               <TableRow>
-                <TableCell align="center" colSpan={4}>
-                  <Typography sx={{ color: "#777", py: 2 }}>
-                    No Chronos predictions available right now.
-                  </Typography>
-                </TableCell>
+                <TableCell align="center">Ticker</TableCell>
+                <TableCell align="center">Predicted Price</TableCell>
+                <TableCell align="center">Confidence Range</TableCell>
+                <TableCell align="center">Prediction Time</TableCell>
               </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {predictions.length > 0 ? (
+                predictions.map(([ticker, price, range, time]) => (
+                  <TableRow
+                    key={ticker}
+                    hover
+                    sx={{ cursor: "pointer" }}
+                    onClick={() => handleRowClick(ticker)}
+                  >
+                    <TableCell align="center">{ticker}</TableCell>
+                    <TableCell align="center">{price}</TableCell>
+                    <TableCell align="center">{range}</TableCell>
+                    <TableCell align="center">{time}</TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell align="center" colSpan={4}>
+                    <Typography sx={{ color: "#777", py: 2 }}>
+                      No Chronos predictions available right now.
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
 
       {/* --- Gainers --- */}
       <Typography variant="h6" textAlign="center" mt={5}>
         Top 5 Gainers ({usedHistorical ? "Last Market Day" : "Today"})
       </Typography>
 
-      <TableContainer component={Paper} sx={{ mt: 2 }}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell align="center">Ticker</TableCell>
-              <TableCell align="center">Company</TableCell>
-              <TableCell align="center">Price</TableCell>
-              <TableCell align="center">Change ($)</TableCell>
-              <TableCell align="center">Change (%)</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {gainers.map((s) => (
-              <TableRow
-                key={s.symbol}
-                hover
-                onClick={() => handleRowClick(s.symbol)}
-                sx={{ cursor: "pointer" }}
-              >
-                <TableCell align="center">{s.symbol}</TableCell>
-                <TableCell align="center">{s.name}</TableCell>
-                <TableCell align="center">${s.price?.toFixed(2)}</TableCell>
-                <TableCell
-                  align="center"
-                  sx={{ color: s.change >= 0 ? "#2e7d32" : "#c62828", fontWeight: 600 }}
-                >
-                  {s.change > 0 ? `+${s.change.toFixed(2)}` : s.change.toFixed(2)}
-                </TableCell>
-                <TableCell align="center" sx={{ color: "#2e7d32", fontWeight: 600 }}>
-                  {s.change?.toFixed(1) ?? s.changesPercentage?.toFixed(1)}%
-                </TableCell>
+      {loadingMovers ? (
+        <Box display="flex" justifyContent="center" mt={3}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <TableContainer component={Paper} sx={{ mt: 2 }}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell align="center">Ticker</TableCell>
+                <TableCell align="center">Company</TableCell>
+                <TableCell align="center">Price</TableCell>
+                <TableCell align="center">Change ($)</TableCell>
+                <TableCell align="center">Change (%)</TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {gainers.map((s) => (
+                <TableRow
+                  key={s.symbol}
+                  hover
+                  onClick={() => handleRowClick(s.symbol)}
+                  sx={{ cursor: "pointer" }}
+                >
+                  <TableCell align="center">{s.symbol}</TableCell>
+                  <TableCell align="center">{s.name}</TableCell>
+                  <TableCell align="center">${s.price?.toFixed(2)}</TableCell>
+                  <TableCell
+                    align="center"
+                    sx={{ color: s.change >= 0 ? "#2e7d32" : "#c62828", fontWeight: 600 }}
+                  >
+                    {s.change > 0 ? `+${s.change.toFixed(2)}` : s.change.toFixed(2)}
+                  </TableCell>
+                  <TableCell align="center" sx={{ color: "#2e7d32", fontWeight: 600 }}>
+                    {s.change?.toFixed(1) ?? s.changesPercentage?.toFixed(1)}%
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
 
       {/* --- Losers --- */}
       <Typography variant="h6" textAlign="center" mt={5}>
         Top 5 Losers ({usedHistorical ? "Last Market Day" : "Today"})
       </Typography>
 
-      <TableContainer component={Paper} sx={{ mt: 2, mb: 5 }}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell className="ticker" align="center">Ticker</TableCell>
-              <TableCell className align="center">Company</TableCell>
-              <TableCell align="center">Price</TableCell>
-              <TableCell align="center">Change ($)</TableCell>
-              <TableCell align="center">Change (%)</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {losers.map((s) => (
-              <TableRow
-                key={s.symbol}
-                hover
-                onClick={() => handleRowClick(s.symbol)}
-                sx={{ cursor: "pointer" }}
-              >
-                <TableCell align="center">{s.symbol}</TableCell>
-                <TableCell align="center">{s.name}</TableCell>
-                <TableCell align="center">${s.price?.toFixed(2)}</TableCell>
-                <TableCell
-                  align="center"
-                  sx={{ color: s.change >= 0 ? "#2e7d32" : "#c62828", fontWeight: 600 }}
-                >
-                  {s.change > 0 ? `+${s.change.toFixed(2)}` : s.change.toFixed(2)}
-                </TableCell>
-                <TableCell align="center" sx={{ color: "#c62828", fontWeight: 600 }}>
-                  {s.change?.toFixed(1) ?? s.changesPercentage?.toFixed(1)}%
-                </TableCell>
+      {loadingMovers ? (
+        <Box display="flex" justifyContent="center" mt={3} mb={5}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <TableContainer component={Paper} sx={{ mt: 2, mb: 5 }}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell align="center">Ticker</TableCell>
+                <TableCell align="center">Company</TableCell>
+                <TableCell align="center">Price</TableCell>
+                <TableCell align="center">Change ($)</TableCell>
+                <TableCell align="center">Change (%)</TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {losers.map((s) => (
+                <TableRow
+                  key={s.symbol}
+                  hover
+                  onClick={() => handleRowClick(s.symbol)}
+                  sx={{ cursor: "pointer" }}
+                >
+                  <TableCell align="center">{s.symbol}</TableCell>
+                  <TableCell align="center">{s.name}</TableCell>
+                  <TableCell align="center">${s.price?.toFixed(2)}</TableCell>
+                  <TableCell
+                    align="center"
+                    sx={{ color: s.change >= 0 ? "#2e7d32" : "#c62828", fontWeight: 600 }}
+                  >
+                    {s.change > 0 ? `+${s.change.toFixed(2)}` : s.change.toFixed(2)}
+                  </TableCell>
+                  <TableCell align="center" sx={{ color: "#c62828", fontWeight: 600 }}>
+                    {s.change?.toFixed(1) ?? s.changesPercentage?.toFixed(1)}%
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
 
       {usedHistorical && (
         <Typography
