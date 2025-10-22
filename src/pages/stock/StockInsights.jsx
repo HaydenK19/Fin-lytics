@@ -80,7 +80,7 @@ function StockInsights() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
-      const intervalOrder = ["5m", "15m", "30m", "1h", "1d"];
+      const intervalOrder = ["5m", "15m", "30m", "60m", "1d"];
       const preds =
         (data?.predictions ?? [])
           .filter((p) => p.ticker === ticker)
