@@ -22,7 +22,6 @@ const SettingsBlock = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [settings, setSettings] = useState({
     email_notifications: false,
-    sms_notifications: false,
     push_notifications: false,
   });
   const [userInfo, setUserInfo] = useState({
@@ -428,17 +427,6 @@ const SettingsBlock = () => {
               />
             }
             label="Email Notifications"
-          />
-          <FormControlLabel
-            control={
-              <Switch
-                checked={settings.sms_notifications}
-                onChange={(e) =>
-                  handleToggleChange("sms_notifications", e.target.checked)
-                }
-              />
-            }
-            label="SMS Notifications"
           />
           <FormControlLabel
             control={

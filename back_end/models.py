@@ -50,7 +50,6 @@ class Settings(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("Users.id", ondelete="CASCADE"), unique=True, nullable=False)
     email_notifications = Column(Boolean, default=False)
-    sms_notifications = Column(Boolean, default=False)
     push_notifications = Column(Boolean, default=False)
 
 

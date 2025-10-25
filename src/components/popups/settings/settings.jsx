@@ -224,14 +224,6 @@ const NotificationSettings = ({ settings, onToggleChange }) => (
       />
     </div>
     <div className="notif-block">
-      <p>SMS Notifications:</p>
-      <ToggleButton
-        label="SMS Notifications"
-        checked={settings?.sms_notifications || false}
-        onChange={(value) => onToggleChange("sms_notifications", value)}
-      />
-    </div>
-    <div className="notif-block">
       <p>Push Notifications:</p>
       <ToggleButton
         label="Push Notifications"

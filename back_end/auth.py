@@ -104,7 +104,7 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
             print(f"Email sending failed: {email_error}")
             # Continue without failing the registration
 
-        user_settings = Settings(user_id=create_user_model.id, email_notifications=False, sms_notifications=False, push_notifications=False)
+        user_settings = Settings(user_id=create_user_model.id, email_notifications=False, push_notifications=False)
         db.add(user_settings)
         db.commit()
 
