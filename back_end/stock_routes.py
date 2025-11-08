@@ -1,7 +1,7 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, status, Depends
 from sqlalchemy.orm import Session
 from database import SessionLocal
-from models import Settings, Stock_Prediction
+from models import Settings, Stock_Prediction, Users
 from auth import get_current_user
 from pydantic import BaseModel
 import requests
@@ -11,8 +11,17 @@ from eod_updater import eod_updater
 from typing import List, Optional
 from datetime import datetime, timedelta
 import os
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+import threading
+import logging
 
 from stock_cache_service import fetch_symbol_from_fmp, fetch_company_snapshot, normalize_ticker_symbol
+
+logger = logging.getLogger(__name__)
+
+# Thread pool executor for CPU-intensive operations
+executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="stock_predictions")
 
 
 load_dotenv()
@@ -34,6 +43,22 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def check_subscription(
+    user: dict = Depends(get_current_user),
+    db = Depends(get_db)
+):
+    """Dependency to check if user has active subscription"""
+    user_model = db.query(Users).filter(Users.id == user["id"]).first()
+    if not user_model:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user_model.subscription_status != "active":
+        raise HTTPException(
+            status_code=403,
+            detail="Active subscription required to access stock predictions"
+        )
+    return True
 
 
 class StockRequest(BaseModel):
@@ -81,10 +106,15 @@ async def websocket_lastquote(websocket: WebSocket):
 
             try:
                 # FMP API endpoint for real-time quote
+                # Run blocking request in thread executor to avoid freezing event loop
                 url = f"{fmp_base_url}/quote/{request.ticker}"
                 params = {'apikey': fmp_api_key}
                 
-                response = requests.get(url, params=params)
+                loop = asyncio.get_event_loop()
+                response = await loop.run_in_executor(
+                    executor,
+                    lambda: requests.get(url, params=params, timeout=10)
+                )
                 response.raise_for_status()
                 
                 quote_data = response.json()
@@ -130,6 +160,7 @@ async def websocket_custombars(websocket: WebSocket):
                 fmp_timeframe = timeframe_map.get(request.timeframe, "1min")
                 
                 # FMP API endpoint for historical chart data
+                # Run blocking request in thread executor to avoid freezing event loop
                 url = f"{fmp_base_url}/historical-chart/{fmp_timeframe}/{request.tick}"
                 params = {
                     'from': request.From,
@@ -137,7 +168,11 @@ async def websocket_custombars(websocket: WebSocket):
                     'apikey': fmp_api_key
                 }
                 
-                response = requests.get(url, params=params)
+                loop = asyncio.get_event_loop()
+                response = await loop.run_in_executor(
+                    executor,
+                    lambda: requests.get(url, params=params, timeout=30)
+                )
                 response.raise_for_status()
                 
                 custombars = response.json()
@@ -212,14 +247,30 @@ async def get_prediction_service_status(user: dict = Depends(get_current_user)):
 @router.post("/predictions/generate")
 async def generate_immediate_prediction(
     request: PredictionRequest,
-    user: dict = Depends(get_current_user)
+    _: bool = Depends(check_subscription)
 ):
     """Generate immediate predictions for specified tickers (not saved to DB)"""
     try:
+        # Run predictions in thread executor to avoid blocking
+        loop = asyncio.get_event_loop()
         results = []
-        for ticker in request.tickers:
-            prediction_data = prediction_service.make_prediction(ticker)
-            if prediction_data:
+        
+        async def make_prediction_async(ticker: str):
+            return await loop.run_in_executor(
+                executor,
+                prediction_service.make_prediction,
+                ticker
+            )
+        
+        # Process all tickers concurrently
+        prediction_tasks = [make_prediction_async(ticker) for ticker in request.tickers]
+        prediction_data_list = await asyncio.gather(*prediction_tasks, return_exceptions=True)
+        
+        for i, prediction_data in enumerate(prediction_data_list):
+            ticker = request.tickers[i]
+            if isinstance(prediction_data, Exception):
+                results.append({"ticker": ticker, "error": f"Failed to generate prediction: {str(prediction_data)}"})
+            elif prediction_data:
                 results.append(prediction_data)
             else:
                 results.append({"ticker": ticker, "error": "Failed to generate prediction"})
@@ -231,14 +282,36 @@ async def generate_immediate_prediction(
 @router.post("/predictions/generate-intervals")
 async def generate_interval_predictions(
     request: PredictionRequest,
-    user: dict = Depends(get_current_user)
+    _: bool = Depends(check_subscription)
 ):
     """Generate multi-interval predictions (for Stock Insights)."""
     try:
+        # Run predictions in thread executor to avoid blocking
+        loop = asyncio.get_event_loop()
         results = []
-        for ticker in request.tickers:
-            preds = prediction_service.make_interval_predictions(ticker)
-            if preds:
+        
+        async def make_interval_predictions_async(ticker: str):
+            return await loop.run_in_executor(
+                executor,
+                prediction_service.make_interval_predictions,
+                ticker
+            )
+        
+        # Process all tickers concurrently
+        prediction_tasks = [make_interval_predictions_async(ticker) for ticker in request.tickers]
+        prediction_data_list = await asyncio.gather(*prediction_tasks, return_exceptions=True)
+        
+        for i, preds in enumerate(prediction_data_list):
+            ticker = request.tickers[i]
+            if isinstance(preds, Exception):
+                results.append({
+                    "ticker": ticker,
+                    "interval": "N/A",
+                    "predicted_price": None,
+                    "change": None,
+                    "error": f"Failed to generate prediction: {str(preds)}"
+                })
+            elif preds:
                 results.extend(preds)
             else:
                 results.append({
@@ -248,6 +321,7 @@ async def generate_interval_predictions(
                     "change": None,
                     "error": "Failed to generate prediction"
                 })
+        
         if not results:
             raise HTTPException(status_code=404, detail="No predictions generated")
         return {"predictions": results}
@@ -464,11 +538,21 @@ async def trigger_eod_update(
     request: EODUpdateRequest,
     user: dict = Depends(get_current_user)
 ):
+    """Trigger EOD update in background thread"""
     try:
-        eod_updater.run_once(request.tickers)
-        return {"status": "ok"}
+        # Run EOD update in background thread to avoid blocking
+        def run_update():
+            try:
+                eod_updater.run_once(request.tickers)
+            except Exception as e:
+                # Log error but don't raise - this runs in background
+                logger.error(f"EOD update error: {e}")
+        
+        thread = threading.Thread(target=run_update, daemon=True)
+        thread.start()
+        return {"status": "ok", "message": "EOD update started in background"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to run EOD update: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to start EOD update: {str(e)}")
 
 @router.post("/eod/start")
 async def start_eod_service(
@@ -504,16 +588,25 @@ async def eod_status(
 async def update_all_stocks(
     user: dict = Depends(get_current_user)
 ):
-    """Update all stocks from the ticker list at once"""
+    """Update all stocks from the ticker list at once (runs in background)"""
     try:
-        eod_updater.update_all_stocks()
+        # Run update in background thread to avoid blocking
+        def run_update_all():
+            try:
+                eod_updater.update_all_stocks()
+            except Exception as e:
+                # Log error but don't raise - this runs in background
+                logger.error(f"EOD update-all error: {e}")
+        
+        thread = threading.Thread(target=run_update_all, daemon=True)
+        thread.start()
         return {
             "status": "ok", 
             "message": f"Update initiated for all {len(eod_updater.tickers)} stocks",
             "ticker_count": len(eod_updater.tickers),
-            "note": "This will update both 5-minute and 15-minute data for all stocks in the ticker list"
+            "note": "This will update both 5-minute and 15-minute data for all stocks in the ticker list. Update is running in background."
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update all stocks: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to start update: {str(e)}")
 
 

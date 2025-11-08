@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Float, Date, DateTime, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Float, Date, DateTime, UniqueConstraint, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
@@ -17,6 +17,8 @@ class Users(Base):
     plaid_brokerage_access_token = Column(String(255), unique=True, nullable=True)
     is_verified = Column(Boolean, default=False)
     verification_token = Column(String(255), nullable=True)
+    subscription_status = Column(String(50), default="inactive")  # active, inactive, canceled, past_due
+    subscription_id = Column(String(255), nullable=True)
     bank_accounts = relationship(
         "Plaid_Bank_Account",
         back_populates="user",
@@ -42,6 +44,9 @@ class Users(Base):
         back_populates="user",
         cascade="all, delete-orphan"
     )
+    # Note: Subscription and Payment info is stored directly in Users table
+    # (subscription_status and subscription_id columns)
+    # No separate Subscription/Payment tables needed for Stripe integration
 
 
 class Settings(Base):
@@ -271,4 +276,6 @@ class Stock_Prediction(Base):
     horizon_minutes = Column(Integer, default=5)
     model_version = Column(String(50), default="ChronosFineTuned")
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
 
