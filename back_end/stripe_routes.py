@@ -5,6 +5,7 @@ from models import Users
 from auth import get_current_user
 from pydantic import BaseModel
 from typing import Optional
+from datetime import datetime
 import stripe
 import os
 from dotenv import load_dotenv
@@ -79,6 +80,9 @@ class SubscriptionStatusResponse(BaseModel):
     has_subscription: bool
     subscription_status: Optional[str]
     subscription_id: Optional[str]
+    next_billing_date: Optional[str] = None  # ISO format date string
+    cancel_at: Optional[str] = None  # ISO format date string (when subscription will end if canceled)
+    current_period_end: Optional[str] = None  # ISO format date string
 
 
 class VerifySessionRequest(BaseModel):
@@ -90,18 +94,110 @@ async def get_subscription_status(
     user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Check if user has an active subscription"""
+    """Check if user has an active subscription and return billing information"""
     user_model = db.query(Users).filter(Users.id == user["id"]).first()
     if not user_model:
         raise HTTPException(status_code=404, detail="User not found")
     
     has_subscription = user_model.subscription_status == "active"
     
-    return {
+    # Initialize response with basic info
+    response_data = {
         "has_subscription": has_subscription,
         "subscription_status": user_model.subscription_status,
-        "subscription_id": user_model.subscription_id
+        "subscription_id": user_model.subscription_id,
+        "next_billing_date": None,
+        "cancel_at": None,
+        "current_period_end": None
     }
+    
+    # If user has a subscription ID, fetch detailed billing info from Stripe
+    if user_model.subscription_id and stripe.api_key:
+        try:
+            subscription = stripe.Subscription.retrieve(user_model.subscription_id)
+            
+            # Get current period end (when current billing period ends)
+            # Access as dictionary or attribute depending on Stripe version
+            current_period_end = None
+            try:
+                if hasattr(subscription, 'current_period_end'):
+                    current_period_end = getattr(subscription, 'current_period_end', None)
+                elif isinstance(subscription, dict) and 'current_period_end' in subscription:
+                    current_period_end = subscription.get('current_period_end')
+            except (AttributeError, KeyError) as e:
+                print(f"Warning: Could not access current_period_end: {e}")
+                current_period_end = None
+            
+            if current_period_end:
+                try:
+                    response_data["current_period_end"] = datetime.fromtimestamp(
+                        int(current_period_end)
+                    ).isoformat()
+                except (ValueError, TypeError, OSError) as e:
+                    print(f"Warning: Could not convert current_period_end to datetime: {e}")
+            
+            # Get cancel_at_period_end flag
+            cancel_at_period_end = False
+            try:
+                if hasattr(subscription, 'cancel_at_period_end'):
+                    cancel_at_period_end = getattr(subscription, 'cancel_at_period_end', False)
+                elif isinstance(subscription, dict):
+                    cancel_at_period_end = subscription.get('cancel_at_period_end', False)
+            except (AttributeError, KeyError):
+                cancel_at_period_end = False
+            
+            # Get cancel_at timestamp
+            cancel_at = None
+            try:
+                if hasattr(subscription, 'cancel_at'):
+                    cancel_at = getattr(subscription, 'cancel_at', None)
+                elif isinstance(subscription, dict):
+                    cancel_at = subscription.get('cancel_at')
+            except (AttributeError, KeyError):
+                cancel_at = None
+            
+            # Get subscription status
+            status = None
+            try:
+                if hasattr(subscription, 'status'):
+                    status = getattr(subscription, 'status', None)
+                elif isinstance(subscription, dict):
+                    status = subscription.get('status')
+            except (AttributeError, KeyError):
+                status = None
+            
+            # Determine what to show based on subscription status
+            # Priority: cancel_at_period_end > cancel_at > active next billing
+            try:
+                if cancel_at_period_end and current_period_end:
+                    # Subscription is set to cancel at period end
+                    response_data["cancel_at"] = datetime.fromtimestamp(
+                        int(current_period_end)
+                    ).isoformat()
+                elif cancel_at:
+                    # Subscription was canceled immediately (uncommon but possible)
+                    response_data["cancel_at"] = datetime.fromtimestamp(
+                        int(cancel_at)
+                    ).isoformat()
+                elif status in ["active", "trialing"] and current_period_end:
+                    # Active subscription, show next billing date
+                    response_data["next_billing_date"] = datetime.fromtimestamp(
+                        int(current_period_end)
+                    ).isoformat()
+            except (ValueError, TypeError, OSError) as e:
+                print(f"Warning: Could not convert timestamp to datetime: {e}")
+                
+        except (StripeError, InvalidRequestError) as e:
+            # If we can't retrieve subscription, log but don't fail
+            # Just return basic info without billing dates
+            print(f"Warning: Could not retrieve subscription details: {e}")
+        except Exception as e:
+            # Any other error, just return basic info
+            print(f"Warning: Error fetching subscription details: {str(e)}")
+            import traceback
+            traceback.print_exc()  # Print full traceback for debugging
+    
+    return response_data
 
 
 @router.post("/refresh-subscription")
@@ -343,6 +439,13 @@ async def create_portal_session(
 ):
     """Create a Stripe customer portal session for managing subscription"""
     try:
+        # Check if Stripe is configured
+        if not stripe.api_key:
+            raise HTTPException(
+                status_code=500,
+                detail="Stripe is not configured. Please set STRIPE_KEY in .env file."
+            )
+        
         user_model = db.query(Users).filter(Users.id == user["id"]).first()
         if not user_model:
             raise HTTPException(status_code=404, detail="User not found")
@@ -350,21 +453,48 @@ async def create_portal_session(
         if not user_model.subscription_id:
             raise HTTPException(
                 status_code=400,
-                detail="User does not have a subscription"
+                detail="User does not have a subscription. Please subscribe first."
             )
         
         # Retrieve the subscription to get customer ID
-        subscription = stripe.Subscription.retrieve(user_model.subscription_id)
-        customer_id = subscription.customer
+        try:
+            subscription = stripe.Subscription.retrieve(user_model.subscription_id)
+            customer_id = subscription.customer
+            
+            # Verify subscription is still valid
+            if subscription.status not in ["active", "trialing", "past_due"]:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Subscription is not active. Current status: {subscription.status}"
+                )
+        except InvalidRequestError as e:
+            # Subscription might have been deleted in Stripe but not updated in our DB
+            if "No such subscription" in str(e):
+                # Update database to reflect deleted subscription
+                user_model.subscription_id = None
+                user_model.subscription_status = "inactive"
+                db.commit()
+                raise HTTPException(
+                    status_code=400,
+                    detail="Subscription not found in Stripe. Your subscription status has been updated."
+                )
+            raise
         
         # Create portal session
+        # Use environment variable for return URL if available, otherwise default
+        return_url = os.getenv("STRIPE_PORTAL_RETURN_URL", "http://localhost:5173/stock")
+        
         portal_session = stripe.billing_portal.Session.create(
             customer=customer_id,
-            return_url="http://localhost:5173/stock",
+            return_url=return_url,
         )
         
         return {"portal_url": portal_session.url}
     
+    except HTTPException:
+        raise
+    except InvalidRequestError as e:
+        raise HTTPException(status_code=400, detail=f"Stripe error: {str(e)}")
     except StripeError as e:
         raise HTTPException(status_code=400, detail=f"Stripe error: {str(e)}")
     except Exception as e:
