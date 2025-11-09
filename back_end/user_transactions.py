@@ -143,7 +143,6 @@ async def get_user_transactions(
                 response = client.transactions_get(request).to_dict()
                 print(f"[PLAID] Retrieved {len(response.get('transactions', []))} transactions")  # Debug
 
-                # Filter transactions by date range (Plaid sandbox sometimes ignores date filters)
                 transactions = []
                 for t in response.get("transactions", []):
                     try:
@@ -270,7 +269,7 @@ async def get_user_transactions(
         # Fetch User_Transactions (user-entered transactions)
         user_transactions = []
         try:
-            from models import User_Transactions
+            from models import User_Transactions, User_Categories, User_Transaction_Category_Link
             user_txns = db.query(User_Transactions).filter(
                 User_Transactions.user_id == user["id"]
             )
@@ -282,19 +281,35 @@ async def get_user_transactions(
             user_txns = user_txns.all()
             print(f"[USER_TRANSACTIONS] Retrieved {len(user_txns)} user transactions")
             
-            user_transactions = [
-                {
-                    "transaction_id": f"user-{t.transaction_id}",  # Prefix to distinguish from Plaid
+            user_transactions = []
+            for t in user_txns:
+                category_name = None
+                try:
+                    category_link = db.query(User_Transaction_Category_Link).filter(
+                        User_Transaction_Category_Link.transaction_id == t.transaction_id
+                    ).first()
+                    
+                    if category_link:
+                        user_category = db.query(User_Categories).filter(
+                            User_Categories.id == category_link.category_id
+                        ).first()
+                        if user_category:
+                            category_name = user_category.name
+                
+                except Exception as cat_err:
+                    print(f"[USER_TRANSACTIONS] Error getting category for transaction {t.transaction_id}: {cat_err}")
+                
+                user_transactions.append({
+                    "transaction_id": f"user-{t.transaction_id}",
                     "account_id": "manual",
                     "amount": t.amount,
                     "currency": "USD",
-                    "category": None,  # Will be populated from category link if available
+                    "category": category_name,
                     "merchant_name": t.description,
                     "date": t.date.isoformat() if t.date else None,
                     "is_user_transaction": True
-                }
-                for t in user_txns
-            ]
+                })
+                
         except Exception as user_tx_err:
             print(f"[USER_TRANSACTIONS] Error fetching user transactions: {user_tx_err}")
             user_transactions = []
@@ -344,7 +359,6 @@ async def get_user_transactions(
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
-
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_transaction(
@@ -438,3 +452,130 @@ async def create_transaction(
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Error creating transaction")
+
+@router.put("/{transaction_id}", status_code=status.HTTP_200_OK)
+async def update_user_transaction(
+    transaction_id: int,
+    payload: dict,
+    user: Annotated[dict, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """
+    Update a user transaction in the User_Transactions table.
+    """
+    try:
+        print(f"[UPDATE_TRANSACTION] Updating user transaction {transaction_id} for user {user['id']}")
+        
+        # Find the transaction
+        from models import User_Transactions, User_Categories, User_Transaction_Category_Link
+        user_transaction = db.query(User_Transactions).filter(
+            User_Transactions.transaction_id == transaction_id,
+            User_Transactions.user_id == user["id"]
+        ).first()
+        
+        if not user_transaction:
+            raise HTTPException(status_code=404, detail="Transaction not found")
+        
+        # Update fields if provided
+        if "amount" in payload:
+            user_transaction.amount = payload["amount"]
+        if "date" in payload:
+            user_transaction.date = datetime.fromisoformat(payload["date"]).date()
+        if "merchant_name" in payload or "description" in payload:
+            user_transaction.description = payload.get("merchant_name") or payload.get("description")
+        
+        # Handle category update
+        if "category" in payload and payload["category"]:
+            category_name = payload["category"]
+            
+            # Find or create category
+            user_category = db.query(User_Categories).filter(
+                User_Categories.user_id == user["id"],
+                User_Categories.name == category_name
+            ).first()
+            
+            if not user_category:
+                user_category = User_Categories(
+                    user_id=user["id"],
+                    name=category_name,
+                    color="#4CAF50",
+                    weekly_limit=None
+                )
+                db.add(user_category)
+                db.commit()
+                db.refresh(user_category)
+            
+            # Update category link
+            existing_link = db.query(User_Transaction_Category_Link).filter(
+                User_Transaction_Category_Link.transaction_id == transaction_id
+            ).first()
+            
+            if existing_link:
+                existing_link.category_id = user_category.id
+            else:
+                new_link = User_Transaction_Category_Link(
+                    transaction_id=transaction_id,
+                    category_id=user_category.id
+                )
+                db.add(new_link)
+        
+        db.commit()
+        db.refresh(user_transaction)
+        
+        print(f"[UPDATE_TRANSACTION] Successfully updated user transaction: {transaction_id}")
+        return {"status": "updated", "transaction_id": transaction_id}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[UPDATE_TRANSACTION] Error updating user transaction: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Error updating transaction")
+
+@router.delete("/{transaction_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user_transaction(
+    transaction_id: int,
+    user: Annotated[dict, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """
+    Delete a user transaction from the User_Transactions table.
+    """
+    try:
+        print(f"[DELETE_TRANSACTION] Deleting user transaction {transaction_id} for user {user['id']}")
+        
+        # Find the transaction
+        from models import User_Transactions, User_Transaction_Category_Link
+        user_transaction = db.query(User_Transactions).filter(
+            User_Transactions.transaction_id == transaction_id,
+            User_Transactions.user_id == user["id"]
+        ).first()
+        
+        if not user_transaction:
+            raise HTTPException(status_code=404, detail="Transaction not found")
+        
+        # Delete category links first
+        category_links = db.query(User_Transaction_Category_Link).filter(
+            User_Transaction_Category_Link.transaction_id == transaction_id
+        ).all()
+        
+        for link in category_links:
+            db.delete(link)
+        
+        # Delete the transaction
+        db.delete(user_transaction)
+        db.commit()
+        
+        print(f"[DELETE_TRANSACTION] Successfully deleted user transaction: {transaction_id}")
+        return None
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[DELETE_TRANSACTION] Error deleting user transaction: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Error deleting transaction")
