@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Box, FormControl, InputLabel, Select, MenuItem, IconButton } from '@mui/material';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Box, FormControl, InputLabel, Select, MenuItem, IconButton, FormControlLabel, Checkbox, Typography } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
@@ -9,7 +9,13 @@ export default function AddTransactionDialog({ open, onClose, defaultDate, onCre
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
   const [date, setDate] = useState(defaultDate ? defaultDate : new Date().toISOString().slice(0,10));
-  const [frequency, setFrequency] = useState('monthly');
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [frequencyType, setFrequencyType] = useState('monthly'); // 'weekly', 'monthly', 'yearly'
+  const [weekDay, setWeekDay] = useState('monday'); //  weekly recurring
+  const [monthDay, setMonthDay] = useState(1); //  monthly recurring (1-31)
+  const [yearMonth, setYearMonth] = useState(1); //  yearly recurring (1-12)
+  const [yearDay, setYearDay] = useState(1); //  yearly recurring (1-31)
+  const [endDate, setEndDate] = useState(''); // OPTIONAL end date
   const [loading, setLoading] = useState(false);
 
   const categories = [
@@ -21,16 +27,42 @@ export default function AddTransactionDialog({ open, onClose, defaultDate, onCre
     'healthcare',
     'education',
     'travel',
-    'recurring/subscription',
     'other'
   ];
 
-  const isRecurring = category === 'recurring/subscription';
+  const weekDays = [
+    { value: 'monday', label: 'Monday' },
+    { value: 'tuesday', label: 'Tuesday' },
+    { value: 'wednesday', label: 'Wednesday' },
+    { value: 'thursday', label: 'Thursday' },
+    { value: 'friday', label: 'Friday' },
+    { value: 'saturday', label: 'Saturday' },
+    { value: 'sunday', label: 'Sunday' }
+  ];
+
+  const months = [
+    { value: 1, label: 'January' },
+    { value: 2, label: 'February' },
+    { value: 3, label: 'March' },
+    { value: 4, label: 'April' },
+    { value: 5, label: 'May' },
+    { value: 6, label: 'June' },
+    { value: 7, label: 'July' },
+    { value: 8, label: 'August' },
+    { value: 9, label: 'September' },
+    { value: 10, label: 'October' },
+    { value: 11, label: 'November' },
+    { value: 12, label: 'December' }
+  ];
 
   const handleSubmit = async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
+      
+      // calculate end date if not provided (default to 1 year from start date)
+      const calculatedEndDate = endDate || new Date(new Date(date).getTime() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0,10);
+      
       const payload = {
         transaction_id: uuidv4(),
         account_id: 'manual',
@@ -39,7 +71,17 @@ export default function AddTransactionDialog({ open, onClose, defaultDate, onCre
         category: category,
         merchant_name: merchant,
         date: date,
-        ...(isRecurring && { frequency: frequency })
+        is_recurring: isRecurring,
+        ...(isRecurring && {
+          frequency_type: frequencyType,
+          ...(frequencyType === 'weekly' && { week_day: weekDay }),
+          ...(frequencyType === 'monthly' && { month_day: monthDay }),
+          ...(frequencyType === 'yearly' && { 
+            year_month: yearMonth,
+            year_day: yearDay 
+          }),
+          end_date: calculatedEndDate
+        })
       };
       const resp = await axios.post('http://localhost:8000/user_transactions/', payload, {
         headers: { Authorization: `Bearer ${token}` },
@@ -54,7 +96,13 @@ export default function AddTransactionDialog({ open, onClose, defaultDate, onCre
       setAmount('');
       setCategory('');
       setDate(new Date().toISOString().slice(0,10));
-      setFrequency('monthly');
+      setIsRecurring(false);
+      setFrequencyType('monthly');
+      setWeekDay('monday');
+      setMonthDay(1);
+      setYearMonth(1);
+      setYearDay(1);
+      setEndDate('');
     } catch (e) {
       console.error('Error creating transaction', e);
       setLoading(false);
@@ -121,21 +169,108 @@ export default function AddTransactionDialog({ open, onClose, defaultDate, onCre
             InputLabelProps={{ shrink: true }} 
           />
           
+          {/* Recurring Transaction Checkbox */}
+          <FormControlLabel
+            control={
+              <Checkbox 
+                checked={isRecurring} 
+                onChange={(e) => setIsRecurring(e.target.checked)}
+                sx={{
+                  '&.Mui-checked': {
+                    color: '#2563eb',
+                  },
+                }}
+              />
+            }
+            label="This is a recurring transaction"
+            sx={{ mt: 1 }}
+          />
+          
           {isRecurring && (
-            <FormControl fullWidth>
-              <InputLabel>Frequency</InputLabel>
-              <Select
-                value={frequency}
-                onChange={(e) => setFrequency(e.target.value)}
-                label="Frequency"
-              >
-                <MenuItem value="weekly">Weekly</MenuItem>
-                <MenuItem value="biweekly">Bi-weekly</MenuItem>
-                <MenuItem value="monthly">Monthly</MenuItem>
-                <MenuItem value="quarterly">Quarterly</MenuItem>
-                <MenuItem value="yearly">Yearly</MenuItem>
-              </Select>
-            </FormControl>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1, p: 2, backgroundColor: '#f8fafc', borderRadius: 2 }}>
+              <Typography variant="subtitle2" sx={{ color: '#64748b', fontWeight: 600 }}>
+                Recurring Transaction Settings
+              </Typography>
+              
+              <FormControl fullWidth>
+                <InputLabel>Frequency Type</InputLabel>
+                <Select
+                  value={frequencyType}
+                  onChange={(e) => setFrequencyType(e.target.value)}
+                  label="Frequency Type"
+                >
+                  <MenuItem value="weekly">Weekly</MenuItem>
+                  <MenuItem value="monthly">Monthly</MenuItem>
+                  <MenuItem value="yearly">Yearly</MenuItem>
+                </Select>
+              </FormControl>
+              
+              {frequencyType === 'weekly' && (
+                <FormControl fullWidth>
+                  <InputLabel>Day of Week</InputLabel>
+                  <Select
+                    value={weekDay}
+                    onChange={(e) => setWeekDay(e.target.value)}
+                    label="Day of Week"
+                  >
+                    {weekDays.map((day) => (
+                      <MenuItem key={day.value} value={day.value}>
+                        {day.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+              
+              {frequencyType === 'monthly' && (
+                <TextField
+                  label="Day of Month"
+                  type="number"
+                  value={monthDay}
+                  onChange={(e) => setMonthDay(parseInt(e.target.value))}
+                  inputProps={{ min: 1, max: 31 }}
+                  fullWidth
+                  helperText="Day of the month (1-31)"
+                />
+              )}
+              
+              {frequencyType === 'yearly' && (
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <FormControl fullWidth>
+                    <InputLabel>Month</InputLabel>
+                    <Select
+                      value={yearMonth}
+                      onChange={(e) => setYearMonth(e.target.value)}
+                      label="Month"
+                    >
+                      {months.map((month) => (
+                        <MenuItem key={month.value} value={month.value}>
+                          {month.label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <TextField
+                    label="Day"
+                    type="number"
+                    value={yearDay}
+                    onChange={(e) => setYearDay(parseInt(e.target.value))}
+                    inputProps={{ min: 1, max: 31 }}
+                    fullWidth
+                  />
+                </Box>
+              )}
+              
+              <TextField 
+                label="End Date (Optional)" 
+                value={endDate} 
+                onChange={(e) => setEndDate(e.target.value)} 
+                fullWidth 
+                type="date" 
+                InputLabelProps={{ shrink: true }}
+                helperText="Leave empty to automatically end after 1 year"
+              />
+            </Box>
           )}
         </Box>
       </DialogContent>

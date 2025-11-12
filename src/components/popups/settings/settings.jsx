@@ -118,23 +118,19 @@ export default SettingsBlock;
 
 const AccountSettings = ({ userInfo, onUpdateUser }) => {
   const [email, setEmail] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showEmailForm, setShowEmailForm] = useState(false);
-  const [showPhoneForm, setShowPhoneForm] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const updateData = {};
     if (email) updateData.email = email;
-    if (phoneNumber) updateData.phone_number = phoneNumber;
     if (newPassword) updateData.password = newPassword;
     onUpdateUser(updateData);
     setShowEmailForm(false);
-    setShowPhoneForm(false);
     setShowPasswordForm(false);
   };
 
@@ -155,26 +151,6 @@ const AccountSettings = ({ userInfo, onUpdateUser }) => {
             <div className="form-block">
               <label style={{ fontSize: "small" }}>New Email: </label>
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-              <button type="submit" className="submit-btn">Update</button>
-            </div>
-          </form>
-        )}
-      </div>
-
-      <div className={`account-block ${showPhoneForm ? "expanded" : ""}`}>
-        <p>Phone Number: {userInfo?.phone_number}</p>
-        <button
-          onClick={() => setShowPhoneForm(!showPhoneForm)}
-          className={`form-btn ${showPhoneForm ? "expanded" : ""}`}
-        >
-          Edit
-          <span className="arrow">▼</span>
-        </button>
-        {showPhoneForm && (
-          <form onSubmit={handleSubmit} className="submit-container">
-            <div className="form-block">
-              <label style={{ fontSize: "small" }}>New Number:</label>
-              <input type="text" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} />
               <button type="submit" className="submit-btn">Update</button>
             </div>
           </form>
@@ -221,14 +197,6 @@ const NotificationSettings = ({ settings, onToggleChange }) => (
         label="Email Notifications"
         checked={settings?.email_notifications || false}
         onChange={(value) => onToggleChange("email_notifications", value)}
-      />
-    </div>
-    <div className="notif-block">
-      <p>SMS Notifications:</p>
-      <ToggleButton
-        label="SMS Notifications"
-        checked={settings?.sms_notifications || false}
-        onChange={(value) => onToggleChange("sms_notifications", value)}
       />
     </div>
     <div className="notif-block">

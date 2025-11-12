@@ -48,6 +48,57 @@ export default function FinancialCalendar() {
   const [cache, setCache] = useState({});
   const [selectedWeek, setSelectedWeek] = useState(new Date());
   const [viewMode, setViewMode] = useState('week');
+  const [categoryColors, setCategoryColors] = useState({});
+
+  // Fetch user categories with colors
+  const fetchCategoryColors = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const userId = payload.id;
+      
+      const response = await axios.get(`http://localhost:8000/user_categories/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        withCredentials: true,
+      });
+      
+      const colorMap = {};
+      response.data.forEach(category => {
+        colorMap[category.name] = category.color;
+      });
+      console.log('Calendar: Fetched category colors:', colorMap);
+      setCategoryColors(colorMap);
+    } catch (error) {
+      console.error('Error fetching category colors:', error);
+    }
+  };
+
+  // Helper function to get category color
+  const getCategoryColor = (category) => {
+    if (!category) return '#9E9E9E';
+    
+    // First try direct lookup
+    let color = categoryColors[category];
+    
+    // If not found, try case-insensitive lookup
+    if (!color) {
+      const matchingKey = Object.keys(categoryColors).find(
+        key => key.toLowerCase() === category.toLowerCase()
+      );
+      if (matchingKey) {
+        color = categoryColors[matchingKey];
+      }
+    }
+    
+    // Default grey if still no color found
+    color = color || '#9E9E9E';
+    console.log('Calendar: Getting color for category:', category, '=> color:', color);
+    return color;
+  };
+
+
 
   // fetch for a given range
   const fetchRange = async (start, end) => {
@@ -95,6 +146,11 @@ export default function FinancialCalendar() {
       fetchRange(startOfMonth(monthBase), endOfMonth(monthBase));
     }
   };
+
+  // fetch category colors on mount
+  useEffect(() => {
+    fetchCategoryColors();
+  }, []);
 
   // current week fetch
   useEffect(() => {
@@ -223,18 +279,72 @@ export default function FinancialCalendar() {
                   <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.6rem', sm: '0.7rem' } }}>{list.length}</Typography>
                 </Box>
                 <Divider sx={{ my: 0.4 }} />
-                <Box sx={{ overflow: 'hidden' }}>
+                <Box sx={{ 
+                  flex: 1, 
+                  overflowY: 'auto', 
+                  maxHeight: '100px',
+                  '&::-webkit-scrollbar': {
+                    width: '4px',
+                  },
+                  '&::-webkit-scrollbar-track': {
+                    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                    borderRadius: '2px',
+                  },
+                  '&::-webkit-scrollbar-thumb': {
+                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                    borderRadius: '2px',
+                    '&:hover': {
+                      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                    },
+                  },
+                }}>
                   <List dense>
-                    {list.slice(0,3).map(tx => (
-                      <ListItem key={tx.transaction_id} button dense onClick={() => setOpenDay(key)}>
-                        <ListItemText primary={tx.merchant_name || tx.category || 'Unknown'} secondary={`$${Math.abs(tx.amount).toFixed(2)}`} primaryTypographyProps={{ noWrap: true, sx: { fontSize: '0.78rem' } }} secondaryTypographyProps={{ sx: { fontSize: '0.72rem' } }} />
+                    {list.map(tx => (
+                      <ListItem 
+                        key={tx.transaction_id} 
+                        button 
+                        dense 
+                        onClick={() => setOpenDay(key)}
+                        sx={{ 
+                          py: 0.25, 
+                          minHeight: '28px',
+                          borderRadius: 1,
+                          mb: 0.25,
+                          backgroundColor: getCategoryColor(tx.category) + '15', // 15 for light opacity
+                          border: `1px solid ${getCategoryColor(tx.category)}40`, // 40 for border opacity
+                          '&:hover': {
+                            backgroundColor: getCategoryColor(tx.category) + '25',
+                          }
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, width: '100%' }}>
+                          <Box 
+                            sx={{ 
+                              width: 6, 
+                              height: 6, 
+                              borderRadius: '50%', 
+                              backgroundColor: getCategoryColor(tx.category),
+                              flexShrink: 0
+                            }} 
+                          />
+                          <ListItemText 
+                            primary={tx.merchant_name || tx.category || 'Unknown'} 
+                            secondary={`$${Math.abs(tx.amount).toFixed(2)}`} 
+                            primaryTypographyProps={{ 
+                              noWrap: true, 
+                              sx: { fontSize: '0.7rem', fontWeight: 500 } 
+                            }} 
+                            secondaryTypographyProps={{ 
+                              sx: { 
+                                fontSize: '0.65rem',
+                                color: tx.amount < 0 ? 'error.main' : 'success.main',
+                                fontWeight: 600
+                              } 
+                            }} 
+                          />
+                        </Box>
                       </ListItem>
                     ))}
-                    {list.length > 3 && (
-                      <ListItem button dense onClick={() => setOpenDay(key)}>
-                        <ListItemText primary={`+${list.length - 3} more`} primaryTypographyProps={{ sx: { fontSize: '0.72rem' } }} />
-                      </ListItem>
-                    )}
                   </List>
                 </Box>
                 <Button 
@@ -317,27 +427,59 @@ export default function FinancialCalendar() {
                   {list.length > 0 && (
                     <Box sx={{ 
                       display: 'flex', 
+                      flexDirection: 'column',
                       gap: 0.2, 
-                      flexWrap: 'wrap', 
-                      justifyContent: 'center',
-                      alignItems: 'center',
                       flex: 1,
-                      mt: 0.5
+                      mt: 0.5,
+                      overflow: 'hidden'
                     }}>
-                      {list.slice(0,4).map((tx, idx) => (
+                      {list.slice(0,3).map((tx, idx) => (
                         <Box 
-                          key={idx} 
+                          key={idx}
                           sx={{ 
-                            width: 4, 
-                            height: 4, 
-                            borderRadius: '50%', 
-                            backgroundColor: tx.amount < 0 ? 'error.main' : 'success.main'
-                          }} 
-                        />
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 0.3,
+                            backgroundColor: getCategoryColor(tx.category) + '20', // 20 for light opacity
+                            borderRadius: '6px',
+                            px: 0.4,
+                            py: 0.2,
+                            minHeight: '12px'
+                          }}
+                        >
+                          <Box 
+                            sx={{ 
+                              width: 3, 
+                              height: 3, 
+                              borderRadius: '50%', 
+                              backgroundColor: getCategoryColor(tx.category),
+                              flexShrink: 0
+                            }} 
+                          />
+                          <Typography 
+                            variant="caption" 
+                            sx={{ 
+                              fontSize: '0.45rem', 
+                              fontWeight: 500,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              flex: 1,
+                              color: 'text.primary'
+                            }}
+                          >
+                            {tx.merchant_name || tx.category || 'Unknown'}
+                          </Typography>
+                        </Box>
                       ))}
-                      {list.length > 4 && (
-                        <Typography variant="caption" sx={{ fontSize: '0.5rem', color: 'text.secondary' }}>
-                          +{list.length - 4}
+                      {list.length > 3 && (
+                        <Typography variant="caption" sx={{ 
+                          fontSize: '0.4rem', 
+                          color: 'text.secondary',
+                          textAlign: 'center',
+                          fontWeight: 600
+                        }}>
+                          +{list.length - 3} more
                         </Typography>
                       )}
                     </Box>
@@ -385,10 +527,27 @@ export default function FinancialCalendar() {
                   }}
                   onClick={() => setOpenDay(tx.date)}
                 >
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', minHeight: '44px' }}>
+                    <Box sx={{ flex: 1, mr: 1, minWidth: 0 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                        <Box 
+                          sx={{ 
+                            width: 8, 
+                            height: 8, 
+                            borderRadius: '50%', 
+                            backgroundColor: getCategoryColor(tx.category),
+                            flexShrink: 0
+                          }} 
+                        />
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            fontWeight: 500,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
                           {tx.merchant_name || tx.category}
                         </Typography>
                         {tx.is_recurring && (
@@ -397,23 +556,29 @@ export default function FinancialCalendar() {
                             size="small" 
                             color="secondary" 
                             variant="outlined"
-                            sx={{ height: 16, fontSize: '0.65rem' }}
+                            sx={{ height: 16, fontSize: '0.65rem', flexShrink: 0, ml: 0.5 }}
                           />
                         )}
                       </Box>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
                         {new Date(tx.date).toLocaleDateString()}
                       </Typography>
                     </Box>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        fontWeight: 600,
-                        color: tx.amount < 0 ? 'error.main' : 'success.main'
-                      }}
-                    >
-                      ${Math.abs(tx.amount).toFixed(2)}
-                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0 }}>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          fontWeight: 600,
+                          color: tx.amount < 0 ? 'error.main' : 'success.main',
+                          lineHeight: 1.2
+                        }}
+                      >
+                        ${Math.abs(tx.amount).toFixed(2)}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                        {tx.amount < 0 ? 'expense' : 'income'}
+                      </Typography>
+                    </Box>
                   </Box>
                 </Paper>
               </Grid>
@@ -432,8 +597,23 @@ export default function FinancialCalendar() {
           <List>
             {(eventsByDate[openDay] || []).map(tx => (
               <React.Fragment key={tx.transaction_id}>
-                <ListItem>
-                  <ListItemText primary={tx.merchant_name || tx.category} secondary={new Date(tx.date).toLocaleString()} />
+                <ListItem sx={{ 
+                  backgroundColor: getCategoryColor(tx.category) + '10',
+                  borderLeft: `4px solid ${getCategoryColor(tx.category)}`,
+                  mb: 0.5,
+                  borderRadius: 1
+                }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 2 }}>
+                    <Box 
+                      sx={{ 
+                        width: 12, 
+                        height: 12, 
+                        borderRadius: '50%', 
+                        backgroundColor: getCategoryColor(tx.category)
+                      }} 
+                    />
+                    <ListItemText primary={tx.merchant_name || tx.category} secondary={new Date(tx.date).toLocaleString()} />
+                  </Box>
                   <Box sx={{ ml:2, color: tx.amount < 0 ? 'error.main' : 'success.main', fontWeight: 600 }}>${Math.abs(tx.amount).toFixed(2)}</Box>
                 </ListItem>
                 <Divider component="li" />

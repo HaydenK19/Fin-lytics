@@ -15,6 +15,13 @@ import ManageBudgets from "./popups/man-budget.jsx";
 import EditAccounts from "./popups/edit-acc.jsx";
 import { useNavigate } from "react-router-dom";
 
+//utility function for consistent currency formatting across budget components
+export const formatCurrency = (value) => {
+    return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD'
+    }).format(value || 0);
+};
 
 const QuickAccess = ({ onEditTransactions, onManageBudgets, onEditAccounts }) => {
   return (
@@ -117,7 +124,7 @@ const MyAccounts = ({ refreshTrigger = 0 }) => {
               <ListItem>
                 <ListItemText
                   primary={accountType.charAt(0).toUpperCase() + accountType.slice(1)}
-                  secondary={`$${(data.balance_amount || 0).toFixed(2)}`}
+                  secondary={formatCurrency(data.balance_amount || 0)}
                 />
               </ListItem>
               <Divider />
@@ -349,6 +356,18 @@ const Budget = () => {
   const handleBalanceUpdate = () => {
     setRefreshTrigger(prev => prev + 1);
   };
+
+  // Listen for budget modal open event from ProjectionsCard
+  useEffect(() => {
+    const handleOpenBudgetModal = () => {
+      setIsManageBudgetsOpen(true);
+    };
+
+    window.addEventListener('openBudgetModal', handleOpenBudgetModal);
+    return () => {
+      window.removeEventListener('openBudgetModal', handleOpenBudgetModal);
+    };
+  }, []);
 
   return (
     <Box sx={{ padding: "20px", width: '100%', maxWidth: '100vw', minHeight: '100vh', overflowX: 'hidden', overflowY: 'auto', boxSizing: 'border-box' }}>

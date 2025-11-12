@@ -16,6 +16,7 @@ import user_balances
 import user_transactions
 import entered_transactions
 import balance_routes
+import budget_goals
 from startup import initialize_prediction_service, cleanup_prediction_service
 import atexit
 
@@ -46,6 +47,7 @@ app.include_router(user_balances.router)
 app.include_router(user_transactions.router)
 app.include_router(entered_transactions.router)
 app.include_router(balance_routes.router)
+app.include_router(budget_goals.router)
 
 
 # Create MySQL tables (make sure this is called at least once)

@@ -16,7 +16,59 @@ const TransactionCard = () => {
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [categoryColors, setCategoryColors] = useState({});
     const navigate = useNavigate();
+
+    const fetchCategoryColors = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            const userId = payload.id;
+            
+            const response = await axios.get(`http://localhost:8000/user_categories/${userId}`, {
+                headers: { Authorization: `Bearer ${token}` },
+                withCredentials: true,
+            });
+            
+            const colorMap = {};
+            response.data.forEach(category => {
+                colorMap[category.name] = category.color;
+            });
+            console.log('Transaction Card: Fetched category colors:', colorMap);
+            setCategoryColors(colorMap);
+        } catch (error) {
+            console.error('Error fetching category colors:', error);
+        }
+    };
+
+    // helper function to get category color
+    const getCategoryColor = (category) => {
+        if (!category) return '#9E9E9E';
+        
+        // try direct lookup
+        let color = categoryColors[category];
+        
+        //try case-insensitive lookup to match plaid and our dbs
+        if (!color) {
+            const matchingKey = Object.keys(categoryColors).find(
+                key => key.toLowerCase() === category.toLowerCase()
+            );
+            if (matchingKey) {
+                color = categoryColors[matchingKey];
+            }
+        }
+        
+        //  grey if still no color found
+        color = color || '#9E9E9E';
+        console.log('Transaction Card: Getting color for category:', category, '=> color:', color);
+        return color;
+    };
+
+    useEffect(() => {
+        fetchCategoryColors();
+    }, []);
 
     useEffect(() => {
         const fetchTransactions = async () => {
@@ -81,7 +133,7 @@ const TransactionCard = () => {
 
             {!loading && !error && (
                 <Box sx={{ 
-                    maxHeight: '400px', // Set max height to match budget projections
+                    maxHeight: '300px', // Reduced from 400px to 300px
                     overflowY: 'auto',  // Add scroll bar when content exceeds max height
                     border: '1px solid rgba(0, 0, 0, 0.12)', // Optional: add subtle border
                     borderRadius: 1,
@@ -108,10 +160,33 @@ const TransactionCard = () => {
                         ) : (
                             transactions.map((tx) => (
                                 <React.Fragment key={tx.transaction_id}>
-                                    <ListItem alignItems="center">
+                                    <ListItem 
+                                        alignItems="center"
+                                        sx={{
+                                            backgroundColor: getCategoryColor(tx.category) + '10',
+                                            border: `1px solid ${getCategoryColor(tx.category)}30`,
+                                            borderRadius: 1,
+                                            mb: 0.5,
+                                            py: 0.5, // Reduced padding from default (usually 1)
+                                            px: 1, // Reduced horizontal padding
+                                            minHeight: '48px', // Set minimum height for consistency
+                                        }}
+                                    >
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 2 }}>
+                                            <Box 
+                                                sx={{ 
+                                                    width: 8, 
+                                                    height: 8, 
+                                                    borderRadius: '50%', 
+                                                    backgroundColor: getCategoryColor(tx.category),
+                                                    flexShrink: 0
+                                                }} 
+                                            />
+                                        </Box>
                                         <ListItemText
                                             primary={tx.merchant_name || tx.category || 'Unknown'}
                                             secondary={new Date(tx.date).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })}
+                                            primaryTypographyProps={{ sx: { fontWeight: 500 } }}
                                         />
                                         <ListItemSecondaryAction>
                                             <Typography sx={{ color: tx.amount < 0 ? 'error.main' : 'success.main', fontWeight: 600 }}>
@@ -119,7 +194,6 @@ const TransactionCard = () => {
                                             </Typography>
                                         </ListItemSecondaryAction>
                                     </ListItem>
-                                    <Divider component="li" />
                                 </React.Fragment>
                             ))
                         )}

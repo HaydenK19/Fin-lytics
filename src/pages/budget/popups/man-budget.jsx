@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     Dialog,
     DialogTitle,
@@ -19,30 +19,28 @@ import {
     InputLabel,
     Box,
     Stack,
+    CircularProgress,
+    Alert,
+    Snackbar,
 } from "@mui/material";
 import CloseIcon from '@mui/icons-material/Close';
 import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPencil } from "@fortawesome/free-solid-svg-icons";
+import axios from "axios";
 
 const ManageBudgets = ({ onClose }) => {
-    const [annualBudget, setAnnualBudget] = useState({
-        name: "Annual Budget",
-        amount: 50000,
-        current: 45000,
-    });
-
-    const [categories, setCategories] = useState([
-        { id: 1, name: "Entertainment", current: 4000, actual: 3500 },
-        { id: 2, name: "Food", current: 8000, actual: 7500 },
-        { id: 3, name: "Utilities", current: 2000, actual: 1800 },
-        { id: 4, name: "Transportation", current: 1500, actual: 1400 },
-    ]);
-
+    const [annualBudget, setAnnualBudget] = useState(null);
+    const [categories, setCategories] = useState([]);
     const [isEditingAnnual, setIsEditingAnnual] = useState(false);
-    const [newCategory, setNewCategory] = useState({ name: "", current: 0, actual: 0 });
+    const [newCategory, setNewCategory] = useState({ name: "", current: 0 });
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+    const [editingCategory, setEditingCategory] = useState(null);
 
-    // Predefined category options
+    //category options
     const commonCategories = [
         "Food & Dining",
         "Entertainment", 
@@ -58,24 +56,193 @@ const ManageBudgets = ({ onClose }) => {
         "Other"
     ];
 
-    const handleAnnualEdit = (e) => {
-        e.preventDefault();
-        setIsEditingAnnual(false);
+    //fetch budget goals on component mount
+    useEffect(() => {
+        fetchBudgetGoals();
+    }, []);
+
+    const fetchBudgetGoals = async () => {
+        try {
+            setLoading(true);
+            const token = localStorage.getItem('token');
+            
+            //annual goals
+            const annualResponse = await axios.get('http://localhost:8000/budget-goals/?goal_type=annual', {
+                headers: { Authorization: `Bearer ${token}` },
+                withCredentials: true,
+            });
+            
+            //categorical goals
+            const categoryResponse = await axios.get('http://localhost:8000/budget-goals/?goal_type=category', {
+                headers: { Authorization: `Bearer ${token}` },
+                withCredentials: true,
+            });
+            
+            //annual budget (take first one or create default structure)
+            if (annualResponse.data.length > 0) {
+                setAnnualBudget({
+                    id: annualResponse.data[0].id,
+                    name: annualResponse.data[0].goal_name,
+                    amount: annualResponse.data[0].goal_amount,
+                    current: 0, //need to calculate this from transactions
+                });
+            } else {
+                setAnnualBudget({
+                    name: "Annual Savings Goal",
+                    amount: 50000,
+                    current: 0,
+                });
+            }
+            
+            //category goals
+            const categoryGoals = categoryResponse.data.map(goal => ({
+                id: goal.id,
+                name: goal.category_name,
+                current: goal.goal_amount,
+                actual: 0,
+                budgetName: goal.goal_name
+            }));
+            
+            setCategories(categoryGoals);
+            
+        } catch (error) {
+            console.error('Error fetching budget goals:', error);
+            setError('Failed to load budget goals');
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleAddCategory = (e) => {
+    const handleAnnualEdit = async (e) => {
         e.preventDefault();
-        setCategories((prev) => [
-            ...prev,
-            {
-                id: categories.length + 1,
+        try {
+            const token = localStorage.getItem('token');
+            
+            if (annualBudget.id) {
+                // Update existing goal
+                await axios.put(`http://localhost:8000/budget-goals/${annualBudget.id}`, {
+                    goal_name: annualBudget.name,
+                    goal_amount: parseFloat(annualBudget.amount),
+                }, {
+                    headers: { Authorization: `Bearer ${token}` },
+                    withCredentials: true,
+                });
+            } else {
+                // Create new goal
+                const response = await axios.post('http://localhost:8000/budget-goals/', {
+                    goal_type: 'annual',
+                    goal_name: annualBudget.name,
+                    goal_amount: parseFloat(annualBudget.amount),
+                    time_period: 'yearly'
+                }, {
+                    headers: { Authorization: `Bearer ${token}` },
+                    withCredentials: true,
+                });
+                
+                setAnnualBudget(prev => ({ ...prev, id: response.data.id }));
+            }
+            
+            setSnackbar({ open: true, message: 'Annual goal saved successfully!', severity: 'success' });
+            setIsEditingAnnual(false);
+            
+        } catch (error) {
+            console.error('Error saving annual goal:', error);
+            setSnackbar({ open: true, message: 'Failed to save annual goal', severity: 'error' });
+        }
+    };
+
+    const handleAddCategory = async (e) => {
+        e.preventDefault();
+        try {
+            const token = localStorage.getItem('token');
+            
+            const response = await axios.post('http://localhost:8000/budget-goals/', {
+                goal_type: 'category',
+                goal_name: `${newCategory.name} Budget`,
+                goal_amount: parseFloat(newCategory.current),
+                time_period: 'monthly',
+                category_name: newCategory.name
+            }, {
+                headers: { Authorization: `Bearer ${token}` },
+                withCredentials: true,
+            });
+            
+            const newCategoryGoal = {
+                id: response.data.id,
                 name: newCategory.name,
                 current: newCategory.current,
-                actual: newCategory.actual,
-            },
-        ]);
-        setNewCategory({ name: "", current: 0, actual: 0 });
+                actual: 0,
+                budgetName: response.data.goal_name
+            };
+            
+            setCategories(prev => [...prev, newCategoryGoal]);
+            setNewCategory({ name: "", current: 0 });
+            setSnackbar({ open: true, message: 'Category added successfully!', severity: 'success' });
+            
+        } catch (error) {
+            console.error('Error adding category:', error);
+            setSnackbar({ open: true, message: 'Failed to add category', severity: 'error' });
+        }
     };
+
+    const handleUpdateCategory = async (categoryId, updatedData) => {
+        try {
+            const token = localStorage.getItem('token');
+            
+            await axios.put(`http://localhost:8000/budget-goals/${categoryId}`, {
+                goal_amount: parseFloat(updatedData.current),
+                category_name: updatedData.name
+            }, {
+                headers: { Authorization: `Bearer ${token}` },
+                withCredentials: true,
+            });
+            
+            setCategories(prev => 
+                prev.map(cat => 
+                    cat.id === categoryId 
+                        ? { ...cat, name: updatedData.name, current: updatedData.current }
+                        : cat
+                )
+            );
+            
+            setEditingCategory(null);
+            setSnackbar({ open: true, message: 'Category updated successfully!', severity: 'success' });
+            
+        } catch (error) {
+            console.error('Error updating category:', error);
+            setSnackbar({ open: true, message: 'Failed to update category', severity: 'error' });
+        }
+    };
+
+    const handleDeleteCategory = async (categoryId) => {
+        try {
+            const token = localStorage.getItem('token');
+            
+            await axios.delete(`http://localhost:8000/budget-goals/${categoryId}`, {
+                headers: { Authorization: `Bearer ${token}` },
+                withCredentials: true,
+            });
+            
+            setCategories(prev => prev.filter(cat => cat.id !== categoryId));
+            setSnackbar({ open: true, message: 'Category deleted successfully!', severity: 'success' });
+            
+        } catch (error) {
+            console.error('Error deleting category:', error);
+            setSnackbar({ open: true, message: 'Failed to delete category', severity: 'error' });
+        }
+    };
+
+    if (loading) {
+        return (
+            <Dialog open onClose={onClose} fullWidth maxWidth="md">
+                <DialogContent>
+                    <Box display="flex" justifyContent="center" alignItems="center" minHeight={200}>
+                        <CircularProgress />
+                    </Box>
+                </DialogContent>
+            </Dialog>
+        );
+    }
 
     return (
         <Dialog open onClose={onClose} fullWidth maxWidth="md">
@@ -95,6 +262,11 @@ const ManageBudgets = ({ onClose }) => {
                 </IconButton>
             </DialogTitle>
             <DialogContent>
+                {error && (
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                        {error}
+                    </Alert>
+                )}
                 <Typography variant="h6" sx={{ mb: 1 }}>Annual Savings Goal:</Typography>
                 <Table size="small">
                     <TableHead>
@@ -112,6 +284,19 @@ const ManageBudgets = ({ onClose }) => {
                                     <form onSubmit={handleAnnualEdit}>
                                         <Stack direction="row" spacing={1} alignItems="center">
                                             <TextField
+                                                label="Goal Name"
+                                                value={annualBudget.name}
+                                                onChange={(e) =>
+                                                    setAnnualBudget((prev) => ({
+                                                        ...prev,
+                                                        name: e.target.value,
+                                                    }))
+                                                }
+                                                size="small"
+                                                sx={{ width: 150 }}
+                                            />
+                                            <TextField
+                                                label="Amount"
                                                 type="number"
                                                 value={annualBudget.amount}
                                                 onChange={(e) =>
@@ -139,11 +324,11 @@ const ManageBudgets = ({ onClose }) => {
                                     </form>
                                 </TableCell>
                             ) : (
-                                <TableCell sx={{ py: 1, fontWeight: 500 }}>${annualBudget.amount.toLocaleString()}</TableCell>
+                                <TableCell sx={{ py: 1, fontWeight: 500 }}>${annualBudget?.amount?.toLocaleString() || 0}</TableCell>
                             )}
-                            <TableCell sx={{ py: 1 }}>${annualBudget.current.toLocaleString()}</TableCell>
-                            <TableCell sx={{ py: 1, color: annualBudget.amount - annualBudget.current >= 0 ? 'success.main' : 'error.main' }}>
-                                ${(annualBudget.amount - annualBudget.current).toLocaleString()}
+                            <TableCell sx={{ py: 1 }}>${annualBudget?.current?.toLocaleString() || 0}</TableCell>
+                            <TableCell sx={{ py: 1, color: (annualBudget?.amount || 0) - (annualBudget?.current || 0) >= 0 ? 'success.main' : 'error.main' }}>
+                                ${((annualBudget?.amount || 0) - (annualBudget?.current || 0)).toLocaleString()}
                             </TableCell>
                             <TableCell sx={{ py: 1 }}>
                                 <IconButton 
@@ -168,27 +353,112 @@ const ManageBudgets = ({ onClose }) => {
                             <TableCell sx={{ fontWeight: 600, py: 1 }}>Monthly Goal</TableCell>
                             <TableCell sx={{ fontWeight: 600, py: 1 }}>Current Spent</TableCell>
                             <TableCell sx={{ fontWeight: 600, py: 1 }}>Remaining</TableCell>
+                            <TableCell sx={{ fontWeight: 600, py: 1 }}>Actions</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {categories.map((category) => (
                             <TableRow key={category.id}>
-                                <TableCell sx={{ py: 1, fontWeight: 500 }}>{category.name}</TableCell>
-                                <TableCell sx={{ py: 1 }}>${category.current.toLocaleString()}</TableCell>
-                                <TableCell sx={{ py: 1 }}>${category.actual.toLocaleString()}</TableCell>
-                                <TableCell sx={{ 
-                                    py: 1, 
-                                    color: category.current - category.actual >= 0 ? 'success.main' : 'error.main',
-                                    fontWeight: 500
-                                }}>
-                                    ${(category.current - category.actual).toLocaleString()}
-                                </TableCell>
+                                {editingCategory === category.id ? (
+                                    <>
+                                        <TableCell sx={{ py: 1 }}>
+                                            <TextField
+                                                value={category.name}
+                                                onChange={(e) => 
+                                                    setCategories(prev => 
+                                                        prev.map(cat => 
+                                                            cat.id === category.id 
+                                                                ? { ...cat, name: e.target.value }
+                                                                : cat
+                                                        )
+                                                    )
+                                                }
+                                                size="small"
+                                                fullWidth
+                                            />
+                                        </TableCell>
+                                        <TableCell sx={{ py: 1 }}>
+                                            <TextField
+                                                type="number"
+                                                value={category.current}
+                                                onChange={(e) => 
+                                                    setCategories(prev => 
+                                                        prev.map(cat => 
+                                                            cat.id === category.id 
+                                                                ? { ...cat, current: parseFloat(e.target.value) || 0 }
+                                                                : cat
+                                                        )
+                                                    )
+                                                }
+                                                size="small"
+                                                fullWidth
+                                            />
+                                        </TableCell>
+                                        <TableCell sx={{ py: 1 }}>${category.actual?.toLocaleString() || 0}</TableCell>
+                                        <TableCell sx={{ 
+                                            py: 1, 
+                                            color: (category.current || 0) - (category.actual || 0) >= 0 ? 'success.main' : 'error.main',
+                                            fontWeight: 500
+                                        }}>
+                                            ${((category.current || 0) - (category.actual || 0)).toLocaleString()}
+                                        </TableCell>
+                                        <TableCell sx={{ py: 1 }}>
+                                            <Stack direction="row" spacing={0.5}>
+                                                <Button 
+                                                    size="small" 
+                                                    onClick={() => handleUpdateCategory(category.id, category)}
+                                                    sx={{ minWidth: 'auto', px: 1 }}
+                                                >
+                                                    Save
+                                                </Button>
+                                                <Button 
+                                                    size="small" 
+                                                    onClick={() => setEditingCategory(null)}
+                                                    sx={{ minWidth: 'auto', px: 1 }}
+                                                >
+                                                    Cancel
+                                                </Button>
+                                            </Stack>
+                                        </TableCell>
+                                    </>
+                                ) : (
+                                    <>
+                                        <TableCell sx={{ py: 1, fontWeight: 500 }}>{category.name}</TableCell>
+                                        <TableCell sx={{ py: 1 }}>${category.current?.toLocaleString() || 0}</TableCell>
+                                        <TableCell sx={{ py: 1 }}>${category.actual?.toLocaleString() || 0}</TableCell>
+                                        <TableCell sx={{ 
+                                            py: 1, 
+                                            color: (category.current || 0) - (category.actual || 0) >= 0 ? 'success.main' : 'error.main',
+                                            fontWeight: 500
+                                        }}>
+                                            ${((category.current || 0) - (category.actual || 0)).toLocaleString()}
+                                        </TableCell>
+                                        <TableCell sx={{ py: 1 }}>
+                                            <Stack direction="row" spacing={0.5}>
+                                                <IconButton 
+                                                    size="small" 
+                                                    onClick={() => setEditingCategory(category.id)}
+                                                    sx={{ color: 'primary.main' }}
+                                                >
+                                                    <EditIcon fontSize="small" />
+                                                </IconButton>
+                                                <IconButton 
+                                                    size="small" 
+                                                    onClick={() => handleDeleteCategory(category.id)}
+                                                    sx={{ color: 'error.main' }}
+                                                >
+                                                    <DeleteIcon fontSize="small" />
+                                                </IconButton>
+                                            </Stack>
+                                        </TableCell>
+                                    </>
+                                )}
                             </TableRow>
                         ))}
                         {categories.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={4} sx={{ py: 2, textAlign: 'center', color: 'text.secondary', fontStyle: 'italic' }}>
-                                    No categories added yet. Add your first category below!
+                                <TableCell colSpan={5} sx={{ py: 2, textAlign: 'center', color: 'text.secondary', fontStyle: 'italic' }}>
+                                    No categories added yet. Add an expense category below.
                                 </TableCell>
                             </TableRow>
                         )}
@@ -258,6 +528,16 @@ const ManageBudgets = ({ onClose }) => {
                     Close
                 </Button>
             </DialogActions>
+            
+            <Snackbar 
+                open={snackbar.open} 
+                autoHideDuration={6000} 
+                onClose={() => setSnackbar({ ...snackbar, open: false })}
+            >
+                <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Dialog>
     );
 };

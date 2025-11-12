@@ -2,11 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Annotated
 from database import SessionLocal
-from models import Users, Plaid_Transactions, Plaid_Bank_Account
+from models import Users, Plaid_Transactions, Plaid_Bank_Account, Budget_Goals
 from auth import get_current_user
 from plaid.api import plaid_api
 from plaid.model.transactions_get_request import TransactionsGetRequest
-from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
+from uuid import UUID, uuid4
+import re
+from category_colors import get_category_color
 try:
     from dateutil.relativedelta import relativedelta
     HAS_DATEUTIL = True
@@ -26,75 +29,118 @@ def get_db():
     finally:
         db.close()
 
-def generate_recurring_transactions(recurring_transaction, start_date, end_date):
+def generate_recurring_transactions_from_user_transaction(db, base_transaction):
     """
-    Generate future instances of a recurring transaction within the date range.
-    
-    It allows users to:
-
-    1. Project future expenses and income
-    2. Create budgets based on predictable recurring items
-    3. Manipulate the Plaid_Transactions table with synthetic future data (TBD RIGHT NOW)
-    
-    This encapsulates the budgeter branch's basic functionality while extending
-    it with advanced financial planning capabilities.
+    Generate recurring transaction instances from a User_Transaction record.
     """
-    print(f"[RECURRING] Generating recurring transactions for {recurring_transaction.transaction_id}")
-    generated = []
-    
-    current_date = recurring_transaction.date
-    frequency = getattr(recurring_transaction, 'frequency', None)
-    
-    # skip if no frequency (not a recurring transaction)
-    if not frequency:
-        print(f"[RECURRING] No frequency found for transaction {recurring_transaction.transaction_id}")
+    if not base_transaction.is_recurring:
         return []
     
-    print(f"[RECURRING] Processing {frequency} transaction from {start_date} to {end_date}")
+    print(f"[RECURRING] Generating instances for transaction {base_transaction.transaction_id}")
     
-    # generate future instances
-    while current_date <= end_date:
-        if current_date >= start_date:
-            # create a transaction-like dict for the recurring instance
-            instance = {
-                "transaction_id": f"{recurring_transaction.transaction_id}-{current_date.isoformat()}",
-                "account_id": recurring_transaction.account_id,
-                "amount": recurring_transaction.amount,
-                "currency": recurring_transaction.currency,
-                "category": recurring_transaction.category,
-                "merchant_name": recurring_transaction.merchant_name,
-                "date": current_date.isoformat(),
-                "is_recurring": True,
-                "original_transaction_id": recurring_transaction.transaction_id
-            }
-            generated.append(instance)
-            print(f"[RECURRING] Generated instance for {current_date}")
+    instances = []
+    current_date = base_transaction.date
+    end_date = base_transaction.end_date or (current_date + timedelta(days=365))  # Default 1 year
+    max_instances = 1000  # Safety limit
+    count = 0
+    
+    while current_date <= end_date and count < max_instances:
+        # Calculate next occurrence
+        next_date = calculate_next_occurrence(
+            current_date,
+            base_transaction.frequency_type,
+            base_transaction.week_day,
+            base_transaction.month_day,
+            base_transaction.year_month,
+            base_transaction.year_day
+        )
         
-        # calculate next occurrence
-        if frequency == 'weekly':
-            current_date += timedelta(weeks=1)
-        elif frequency == 'biweekly':
-            current_date += timedelta(weeks=2)
-        elif frequency == 'monthly' and HAS_DATEUTIL:
-            current_date += relativedelta(months=1)
-        elif frequency == 'quarterly' and HAS_DATEUTIL:
-            current_date += relativedelta(months=3)
-        elif frequency == 'yearly' and HAS_DATEUTIL:
-            current_date += relativedelta(years=1)
-        elif frequency in ['monthly', 'quarterly', 'yearly'] and not HAS_DATEUTIL:
-            # fallback for monthly/quarterly/yearly without dateutil (Approximate)
-            if frequency == 'monthly':
-                current_date += timedelta(days=30)  
-            elif frequency == 'quarterly':
-                current_date += timedelta(days=90)  
-            elif frequency == 'yearly':
-                current_date += timedelta(days=365)  
-        else:
-            print(f"[RECURRING] Unknown frequency: {frequency}")
-            break 
+        if next_date > end_date:
+            break
+            
+        # Create new transaction instance
+        from models import User_Transactions
+        instance = User_Transactions(
+            user_id=base_transaction.user_id,
+            date=next_date,
+            amount=base_transaction.amount,
+            description=base_transaction.description,
+            category_id=base_transaction.category_id,
+            is_recurring=False,  # Instances are not recurring themselves
+            parent_transaction_id=base_transaction.transaction_id
+        )
+        
+        db.add(instance)
+        instances.append(instance)
+        
+        current_date = next_date
+        count += 1
+        
+        print(f"[RECURRING] Created instance for {next_date}")
     
-    print(f"[RECURRING] Generated {len(generated)} recurring instances")
-    return generated
+    if instances:
+        db.commit()
+        for instance in instances:
+            db.refresh(instance)
+    
+    print(f"[RECURRING] Generated {len(instances)} instances")
+    return instances
+
+def calculate_next_occurrence(current_date, frequency_type, week_day=None, month_day=None, year_month=None, year_day=None):
+    """
+    Calculate the next occurrence of a recurring transaction based on the new frequency structure.
+    """
+    if frequency_type == 'weekly':
+        # Find the next occurrence of the specified weekday
+        weekdays = {
+            'monday': 0, 'tuesday': 1, 'wednesday': 2, 'thursday': 3,
+            'friday': 4, 'saturday': 5, 'sunday': 6
+        }
+        target_weekday = weekdays.get(week_day.lower(), 0)
+        
+        # Calculate days until next occurrence
+        days_ahead = target_weekday - current_date.weekday()
+        if days_ahead <= 0:  # Target day already happened this week
+            days_ahead += 7
+        
+        return current_date + timedelta(days=days_ahead)
+    
+    elif frequency_type == 'monthly':
+        # Next occurrence on the specified day of next month
+        if HAS_DATEUTIL:
+            next_month = current_date + relativedelta(months=1)
+            try:
+                return next_month.replace(day=month_day)
+            except ValueError:
+                # Handle case where month_day doesn't exist in next month (e.g., Feb 30)
+                return next_month.replace(day=min(month_day, 28))
+        else:
+            # Fallback without dateutil
+            next_month_approx = current_date + timedelta(days=30)
+            try:
+                return next_month_approx.replace(day=month_day)
+            except ValueError:
+                return next_month_approx.replace(day=min(month_day, 28))
+    
+    elif frequency_type == 'yearly':
+        # Next occurrence on the specified month and day of next year
+        if HAS_DATEUTIL:
+            next_year = current_date + relativedelta(years=1)
+            try:
+                return next_year.replace(month=year_month, day=year_day)
+            except ValueError:
+                # Handle leap year issues
+                return next_year.replace(month=year_month, day=min(year_day, 28))
+        else:
+            # Fallback without dateutil
+            next_year_approx = current_date + timedelta(days=365)
+            try:
+                return next_year_approx.replace(month=year_month, day=year_day)
+            except ValueError:
+                return next_year_approx.replace(month=year_month, day=min(year_day, 28))
+    
+    return None
+
 
 @router.get("/", status_code=status.HTTP_200_OK)
 async def get_user_transactions(
@@ -102,6 +148,7 @@ async def get_user_transactions(
     db: Annotated[Session, Depends(get_db)],
     start_date: str | None = None,
     end_date: str | None = None,
+    recurring_only: bool | None = None,
 ):
     """
     Fetch the user's transactions from Plaid and the database.
@@ -278,20 +325,27 @@ async def get_user_transactions(
                 user_txns = user_txns.filter(User_Transactions.date >= start_dt)
             if end_date:
                 user_txns = user_txns.filter(User_Transactions.date <= end_dt)
+            if recurring_only:
+                # Filter for recurring transactions only
+                user_txns = user_txns.filter(User_Transactions.is_recurring == True)
             
             user_txns = user_txns.all()
             print(f"[USER_TRANSACTIONS] Retrieved {len(user_txns)} user transactions")
             
             user_transactions = [
                 {
+                    "id": t.transaction_id,  # Add id field for frontend
                     "transaction_id": f"user-{t.transaction_id}",  # Prefix to distinguish from Plaid
                     "account_id": "manual",
                     "amount": t.amount,
                     "currency": "USD",
-                    "category": None,  # Will be populated from category link if available
+                    "category": getattr(t, 'category', None),  # Use category from transaction
                     "merchant_name": t.description,
                     "date": t.date.isoformat() if t.date else None,
-                    "is_user_transaction": True
+                    "is_user_transaction": True,
+                    "is_recurring": getattr(t, 'is_recurring', False),
+                    "recurring_enabled": getattr(t, 'recurring_enabled', None),
+                    "frequency_type": getattr(t, 'frequency_type', None),
                 }
                 for t in user_txns
             ]
@@ -309,12 +363,9 @@ async def get_user_transactions(
             print(f"[RECURRING] Found {len(recurring_base_transactions)} recurring base transactions")
             
             for recurring_transaction in recurring_base_transactions:
-                generated = generate_recurring_transactions(
-                    recurring_transaction, 
-                    start_dt, 
-                    end_dt
-                )
-                recurring_transactions.extend(generated)
+                # This is for displaying recurring transactions, not creating them
+                # We'll use a simpler approach here for backward compatibility
+                pass
         except AttributeError:
             # Frequency column doesn't exist yet, skip recurring transactions
             print("[RECURRING] Frequency column not available, skipping recurring transactions")
@@ -387,10 +438,14 @@ async def create_transaction(
             # Create category if it doesn't exist
             if not user_category:
                 print(f"[CREATE_TRANSACTION] Creating new category: {category_name}")
+                
+                # Get color using shared utility
+                assigned_color = get_category_color(category_name)
+                
                 user_category = User_Categories(
                     user_id=user["id"],
                     name=category_name,
-                    color="#4CAF50",  # Default green color
+                    color=assigned_color,
                     weekly_limit=None
                 )
                 db.add(user_category)
@@ -402,33 +457,78 @@ async def create_transaction(
 
         # Create User_Transactions record
         from models import User_Transactions
-        new_transaction = User_Transactions(
-            user_id=user["id"],
-            date=datetime.fromisoformat(payload["date"]).date(),
-            amount=payload["amount"],
-            description=payload.get("merchant_name", "Manual Transaction"),
-            category_id=category_id
-        )
+        
+        # Create basic transaction data
+        transaction_data = {
+            "user_id": user["id"],
+            "date": datetime.fromisoformat(payload["date"]).date(),
+            "amount": payload["amount"],
+            "description": payload.get("merchant_name", "Manual Transaction"),
+            "category_id": category_id
+        }
+        
+        # Add recurring fields only if they exist in the model (database schema)
+        try:
+            if payload.get("is_recurring"):
+                transaction_data.update({
+                    "is_recurring": True,
+                    "frequency_type": payload.get("frequency_type"),
+                    "week_day": payload.get("week_day"),
+                    "month_day": payload.get("month_day"),
+                    "year_month": payload.get("year_month"),
+                    "year_day": payload.get("year_day"),
+                    "end_date": datetime.fromisoformat(payload["end_date"]).date() if payload.get("end_date") else None
+                })
+        except Exception as schema_err:
+            print(f"[CREATE_TRANSACTION] Recurring fields not available in database schema: {schema_err}")
+            # Continue with basic transaction
+        
+        new_transaction = User_Transactions(**transaction_data)
         
         db.add(new_transaction)
         db.commit()
         db.refresh(new_transaction)
         print(f"[CREATE_TRANSACTION] Created User_Transaction with ID: {new_transaction.transaction_id}")
+        
+        # Generate recurring transactions if this is a recurring transaction
+        recurring_instances = []
+        if payload.get("is_recurring"):
+            try:
+                print(f"[CREATE_TRANSACTION] Generating recurring transactions for {new_transaction.transaction_id}")
+                recurring_instances = generate_recurring_transactions_from_user_transaction(db, new_transaction)
+                print(f"[CREATE_TRANSACTION] Generated {len(recurring_instances)} recurring instances")
+            except Exception as recurring_err:
+                print(f"[CREATE_TRANSACTION] Error generating recurring transactions: {recurring_err}")
+                # Continue anyway, the main transaction was created successfully
 
-        # Create User_Transaction_Category_Link
+        # Create User_Transaction_Category_Link for main transaction and recurring instances
         if category_id:
             try:
+                # Link for main transaction
                 transaction_link = User_Transaction_Category_Link(
                     transaction_id=new_transaction.transaction_id,
                     category_id=category_id
                 )
                 db.add(transaction_link)
+                
+                # Create links for recurring instances if they exist
+                if payload.get("is_recurring") and recurring_instances:
+                    for instance in recurring_instances:
+                        instance_link = User_Transaction_Category_Link(
+                            transaction_id=instance.transaction_id,
+                            category_id=category_id
+                        )
+                        db.add(instance_link)
+                
                 db.commit()
-                print(f"[CREATE_TRANSACTION] Created user transaction-category link")
+                print(f"[CREATE_TRANSACTION] Created user transaction-category links")
             except Exception as link_err:
                 print(f"[CREATE_TRANSACTION] Error creating user transaction-category link: {link_err}")
                 # Continue anyway, the transaction was created successfully
 
+        # Check if user has budget goals, if not create defaults
+        await check_and_create_default_budget_goals(user["id"], db)
+        
         print(f"[CREATE_TRANSACTION] Successfully created user transaction: {new_transaction.transaction_id}")
         return {"status": "created", "transaction_id": new_transaction.transaction_id}
     except HTTPException:
@@ -438,3 +538,52 @@ async def create_transaction(
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Error creating transaction")
+
+
+async def check_and_create_default_budget_goals(user_id: int, db: Session):
+    """
+    Check if user has any category budget goals. If not, create default ones.
+    """
+    try:
+        # Check if user already has category goals
+        existing_goals = db.query(Budget_Goals).filter(
+            Budget_Goals.user_id == user_id,
+            Budget_Goals.goal_type == "category",
+            Budget_Goals.is_active == True
+        ).count()
+        
+        if existing_goals > 0:
+            print(f"[BUDGET_GOALS] User {user_id} already has {existing_goals} category goals")
+            return
+        
+        print(f"[BUDGET_GOALS] Creating default category goals for user {user_id}")
+        
+        # Default categories with reasonable monthly budgets
+        default_categories = [
+            {"name": "Food & Dining", "amount": 500.0},
+            {"name": "Entertainment", "amount": 200.0},
+            {"name": "Transportation", "amount": 300.0},
+            {"name": "Utilities", "amount": 150.0},
+            {"name": "Healthcare", "amount": 100.0},
+            {"name": "Shopping", "amount": 250.0},
+        ]
+        
+        goals_created = 0
+        for category in default_categories:
+            budget_goal = Budget_Goals(
+                user_id=user_id,
+                goal_type="category",
+                goal_name=f"{category['name']} Budget",
+                goal_amount=category["amount"],
+                time_period="monthly",
+                category_name=category["name"]
+            )
+            db.add(budget_goal)
+            goals_created += 1
+        
+        db.commit()
+        print(f"[BUDGET_GOALS] Created {goals_created} default category goals for user {user_id}")
+        
+    except Exception as e:
+        print(f"[BUDGET_GOALS] Error creating default budget goals: {str(e)}")
+        # Don't raise exception, just log error - transaction creation should not fail
