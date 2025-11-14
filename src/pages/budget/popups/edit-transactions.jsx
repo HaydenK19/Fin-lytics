@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
     Dialog,
@@ -63,8 +64,24 @@ const EditTransactions = ({ onClose }) => {
                     withCredentials: true,
                 });
 
-                const { db_transactions } = response.data;
-                setTransactions(db_transactions);
+                // Combine all transaction types from the backend response
+                const { plaid_transactions = [], db_transactions = [], user_transactions = [] } = response.data;
+                
+                // Combine and format all transactions with source indicators
+                const allTransactions = [
+                    ...plaid_transactions.map(t => ({ ...t, source: 'plaid', editable: false })),
+                    ...db_transactions.map(t => ({ ...t, source: 'database', editable: true })),
+                    ...user_transactions.map(t => ({ ...t, source: 'user', editable: true }))
+                ];
+
+                // Sort by date (most recent first)
+                allTransactions.sort((a, b) => {
+                    const dateA = new Date(a.date || 0);
+                    const dateB = new Date(b.date || 0);
+                    return dateB - dateA;
+                });
+
+                setTransactions(allTransactions);
             } catch (error) {
                 console.error("Error fetching transactions:", error.response ? error.response.data : error);
             }
@@ -93,6 +110,11 @@ const EditTransactions = ({ onClose }) => {
         const [isAddOpen, setIsAddOpen] = useState(false);
 
     const handleEditTransaction = (transaction) => {
+        if (!transaction.editable) {
+            alert("This transaction cannot be edited as it comes from an external source.");
+            return;
+        }
+        
         setEditingTransaction(transaction.transaction_id);
         setEditForm({
             merchant_name: transaction.merchant_name || '',
@@ -115,6 +137,13 @@ const EditTransactions = ({ onClose }) => {
     const handleSaveEdit = async (transactionId) => {
         try {
             const token = localStorage.getItem("token");
+            const transaction = transactions.find(t => t.transaction_id === transactionId);
+            
+            if (!transaction) {
+                alert("Transaction not found");
+                return;
+            }
+
             const updatedTransaction = {
                 merchant_name: editForm.merchant_name,
                 amount: parseFloat(editForm.amount),
@@ -122,7 +151,34 @@ const EditTransactions = ({ onClose }) => {
                 date: editForm.date
             };
 
-            await axios.put(`http://localhost:8000/user_transactions/${transactionId}`, updatedTransaction, {
+            // Determine which endpoint to use based on transaction source
+            let endpoint;
+            let payload;
+            
+            if (transaction.source === 'user') {
+                // Extract numeric ID from "user-14" format
+                const numericId = transactionId.replace('user-', '');
+                endpoint = `http://localhost:8000/user_transactions/${numericId}`;
+                payload = {
+                    amount: updatedTransaction.amount,
+                    merchant_name: updatedTransaction.merchant_name,
+                    category: updatedTransaction.category,
+                    date: updatedTransaction.date
+                };
+            } else if (transaction.source === 'database') {
+                endpoint = `http://localhost:8000/entered_transactions/${transactionId}`;
+                payload = {
+                    date: updatedTransaction.date,
+                    amount: updatedTransaction.amount,
+                    description: updatedTransaction.merchant_name,
+                    category_id: null // You might want to handle category mapping here
+                };
+            } else {
+                alert("This transaction cannot be edited");
+                return;
+            }
+
+            await axios.put(endpoint, payload, {
                 headers: { Authorization: `Bearer ${token}` },
                 withCredentials: true,
             });
@@ -151,7 +207,28 @@ const EditTransactions = ({ onClose }) => {
         if (window.confirm("Are you sure you want to delete this transaction?")) {
             try {
                 const token = localStorage.getItem("token");
-                await axios.delete(`http://localhost:8000/user_transactions/${transactionId}`, {
+                const transaction = transactions.find(t => t.transaction_id === transactionId);
+                
+                if (!transaction) {
+                    alert("Transaction not found");
+                    return;
+                }
+
+                // Determine which endpoint to use based on transaction source
+                let endpoint;
+                
+                if (transaction.source === 'user') {
+                    // Extract numeric ID from "user-14" format
+                    const numericId = transactionId.replace('user-', '');
+                    endpoint = `http://localhost:8000/user_transactions/${numericId}`;
+                } else if (transaction.source === 'database') {
+                    endpoint = `http://localhost:8000/entered_transactions/${transactionId}`;
+                } else {
+                    alert("This transaction cannot be deleted");
+                    return;
+                }
+
+                await axios.delete(endpoint, {
                     headers: { Authorization: `Bearer ${token}` },
                     withCredentials: true,
                 });
@@ -168,7 +245,7 @@ const EditTransactions = ({ onClose }) => {
     return (
         <Dialog open onClose={onClose} fullWidth maxWidth="sm">
             <DialogTitle sx={{ position: 'relative' }}>
-                Edit Transactions
+                Manage Transactions
                 <IconButton
                     aria-label="close"
                     onClick={onClose}
@@ -184,7 +261,8 @@ const EditTransactions = ({ onClose }) => {
             </DialogTitle>
             <DialogContent>
                 <Typography variant="body1" gutterBottom>
-                    Add/Remove/Edit Transactions.
+                    View all your transactions and manage the ones you've added manually. 
+                    Transactions from external sources (like Plaid) are read-only.
                 </Typography>
 
                 <Typography variant="h6">Recent Transactions:</Typography>
@@ -204,7 +282,7 @@ const EditTransactions = ({ onClose }) => {
                         <List>
                             {paginatedTransactions.map((transaction) => (
                                 <ListItem key={transaction.transaction_id} divider sx={{ py: 2 }}>
-                                    {editingTransaction === transaction.transaction_id ? (
+                                    {editingTransaction === transaction.transaction_id && transaction.editable ? (
                                         // Editing mode
                                         <Box sx={{ width: '100%' }}>
                                             <Stack spacing={2}>
@@ -296,6 +374,15 @@ const EditTransactions = ({ onClose }) => {
                                                             variant="outlined"
                                                             sx={{ fontSize: '0.75rem' }}
                                                         />
+                                                        <Chip 
+                                                            label={transaction.source || 'unknown'} 
+                                                            size="small" 
+                                                            color={
+                                                                transaction.source === 'plaid' ? 'primary' : 
+                                                                transaction.source === 'user' ? 'secondary' : 'default'
+                                                            }
+                                                            sx={{ fontSize: '0.70rem' }}
+                                                        />
                                                     </Box>
                                                 }
                                                 secondary={
@@ -310,20 +397,37 @@ const EditTransactions = ({ onClose }) => {
                                                 }
                                             />
                                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                                                <IconButton
-                                                    onClick={() => handleEditTransaction(transaction)}
-                                                    size="small"
-                                                    sx={{ color: '#2563eb' }}
-                                                >
-                                                    <EditIcon fontSize="small" />
-                                                </IconButton>
-                                                <IconButton
-                                                    onClick={() => handleDeleteTransaction(transaction.transaction_id)}
-                                                    size="small"
-                                                    sx={{ color: 'error.main' }}
-                                                >
-                                                    <DeleteIcon fontSize="small" />
-                                                </IconButton>
+                                                {transaction.editable ? (
+                                                    <>
+                                                        <IconButton
+                                                            onClick={() => handleEditTransaction(transaction)}
+                                                            size="small"
+                                                            sx={{ color: '#2563eb' }}
+                                                        >
+                                                            <EditIcon fontSize="small" />
+                                                        </IconButton>
+                                                        <IconButton
+                                                            onClick={() => handleDeleteTransaction(transaction.transaction_id)}
+                                                            size="small"
+                                                            sx={{ color: 'error.main' }}
+                                                        >
+                                                            <DeleteIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </>
+                                                ) : (
+                                                    <Box sx={{ 
+                                                        display: 'flex', 
+                                                        flexDirection: 'column', 
+                                                        alignItems: 'center',
+                                                        opacity: 0.5,
+                                                        gap: 0.5,
+                                                        p: 1
+                                                    }}>
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            View Only
+                                                        </Typography>
+                                                    </Box>
+                                                )}
                                             </Box>
                                         </>
                                     )}
@@ -395,9 +499,33 @@ const EditTransactions = ({ onClose }) => {
                 <AddTransactionDialog
                     open={isAddOpen}
                     onClose={() => setIsAddOpen(false)}
-                    onCreated={(tx) => {
-                        // prepend to transactions for immediate feedback
-                        setTransactions(prev => [tx, ...prev]);
+                    onCreated={async () => {
+                        // Refresh all transactions after adding a new one
+                        try {
+                            const token = localStorage.getItem("token");
+                            const response = await axios.get("http://localhost:8000/user_transactions/", {
+                                headers: { Authorization: `Bearer ${token}` },
+                                withCredentials: true,
+                            });
+
+                            const { plaid_transactions = [], db_transactions = [], user_transactions = [] } = response.data;
+                            
+                            const allTransactions = [
+                                ...plaid_transactions.map(t => ({ ...t, source: 'plaid', editable: false })),
+                                ...db_transactions.map(t => ({ ...t, source: 'database', editable: true })),
+                                ...user_transactions.map(t => ({ ...t, source: 'user', editable: true }))
+                            ];
+
+                            allTransactions.sort((a, b) => {
+                                const dateA = new Date(a.date || 0);
+                                const dateB = new Date(b.date || 0);
+                                return dateB - dateA;
+                            });
+
+                            setTransactions(allTransactions);
+                        } catch (error) {
+                            console.error("Error refreshing transactions:", error);
+                        }
                     }}
                 />
             )}
@@ -406,3 +534,4 @@ const EditTransactions = ({ onClose }) => {
 };
 
 export default EditTransactions;
+
