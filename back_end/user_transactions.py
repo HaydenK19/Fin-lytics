@@ -66,7 +66,7 @@ def generate_recurring_transactions_from_user_transaction(db, base_transaction):
             amount=base_transaction.amount,
             description=base_transaction.description,
             category_id=base_transaction.category_id,
-            is_recurring=False,  # Instances are not recurring themselves
+            is_recurring=True,  # mark instances as recurring so frontend can identify them
             parent_transaction_id=base_transaction.transaction_id
         )
         
@@ -91,14 +91,13 @@ def calculate_next_occurrence(current_date, frequency_type, week_day=None, month
     Calculate the next occurrence of a recurring transaction based on the new frequency structure.
     """
     if frequency_type == 'weekly':
-        # Find the next occurrence of the specified weekday
+        # find the next occurrence of the specified weekday
         weekdays = {
             'monday': 0, 'tuesday': 1, 'wednesday': 2, 'thursday': 3,
             'friday': 4, 'saturday': 5, 'sunday': 6
         }
         target_weekday = weekdays.get(week_day.lower(), 0)
         
-        # Calculate days until next occurrence
         days_ahead = target_weekday - current_date.weekday()
         if days_ahead <= 0:  # Target day already happened this week
             days_ahead += 7
@@ -106,7 +105,7 @@ def calculate_next_occurrence(current_date, frequency_type, week_day=None, month
         return current_date + timedelta(days=days_ahead)
     
     elif frequency_type == 'monthly':
-        # Next occurrence on the specified day of next month
+        # Nnext occurrence on the specified day of next month
         if HAS_DATEUTIL:
             next_month = current_date + relativedelta(months=1)
             try:

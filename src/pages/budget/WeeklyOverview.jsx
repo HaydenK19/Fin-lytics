@@ -5,7 +5,20 @@ import AddTransactionDialog from './popups/add-transaction';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 
-const formatISO = (d) => d.toISOString().slice(0,10);
+// Format date to YYYY-MM-DD in local timezone (fixes off-by-one error)
+const formatISO = (d) => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+// Parse date string as local timezone to avoid UTC conversion issues
+const parseLocalDate = (dateString) => {
+  if (!dateString) return null;
+  const [year, month, day] = dateString.split('T')[0].split('-');
+  return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+};
 
 function startOfWeek(date) {
   const d = new Date(date);
@@ -50,7 +63,7 @@ export default function FinancialCalendar() {
   const [viewMode, setViewMode] = useState('week');
   const [categoryColors, setCategoryColors] = useState({});
 
-  // Fetch user categories with colors
+  // get user categories with colors
   const fetchCategoryColors = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -75,7 +88,7 @@ export default function FinancialCalendar() {
     }
   };
 
-  // Helper function to get category color
+  // function to get category color
   const getCategoryColor = (category) => {
     if (!category) return '#9E9E9E';
     
@@ -92,7 +105,7 @@ export default function FinancialCalendar() {
       }
     }
     
-    // Default grey if still no color found
+    // grey if still no color found
     color = color || '#9E9E9E';
     console.log('Calendar: Getting color for category:', category, '=> color:', color);
     return color;
@@ -612,7 +625,10 @@ export default function FinancialCalendar() {
                         backgroundColor: getCategoryColor(tx.category)
                       }} 
                     />
-                    <ListItemText primary={tx.merchant_name || tx.category} secondary={new Date(tx.date).toLocaleString()} />
+                    <ListItemText 
+                      primary={tx.merchant_name || tx.category} 
+                      secondary={parseLocalDate(tx.date)?.toLocaleString() || tx.date} 
+                    />
                   </Box>
                   <Box sx={{ ml:2, color: tx.amount < 0 ? 'error.main' : 'success.main', fontWeight: 600 }}>${Math.abs(tx.amount).toFixed(2)}</Box>
                 </ListItem>
