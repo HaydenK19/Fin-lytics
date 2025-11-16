@@ -1,7 +1,8 @@
+// src/components/PlanCard.jsx
 import React from "react";
 import { Card, CardContent, CardActions, Typography, Button } from "@mui/material";
 
-const PlanCard = ({ title, price, features, onSelect }) => {
+const PlanCard = ({ title, price, features, onSelect, loading, disabled }) => {
   return (
     <Card
       sx={{
@@ -14,8 +15,8 @@ const PlanCard = ({ title, price, features, onSelect }) => {
         textAlign: "center",
         transition: "transform 0.3s ease, box-shadow 0.3s ease",
         "&:hover": {
-          transform: "scale(1.05)",
-          boxShadow: 8,
+          transform: disabled ? "none" : "scale(1.05)",
+          boxShadow: disabled ? 4 : 8,
         },
       }}
     >
@@ -53,8 +54,9 @@ const PlanCard = ({ title, price, features, onSelect }) => {
             fontWeight: "bold",
           }}
           onClick={onSelect}
+          disabled={disabled}
         >
-          Select
+          {loading ? "Redirecting…" : "Select"}
         </Button>
       </CardActions>
     </Card>

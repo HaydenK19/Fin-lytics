@@ -6,8 +6,6 @@ import Portfolio from "./portfolio/portfolio";
 import Stock from "./stock/stock";
 import StockInsights from "./stock/StockInsights";
 import Plans from "./subscription/pages/Plans";
-import PaymentForm from "./subscription/pages/PaymentForm";
-import ConfirmPayment from "./subscription/pages/ConfirmPayment";
 import Success from "./subscription/pages/Success";
 
 const Dashboard = ({ isAuthenticated, setIsAuthenticated }) => {
@@ -29,8 +27,6 @@ const Dashboard = ({ isAuthenticated, setIsAuthenticated }) => {
             {/* Subscription flow */}
             <Route path="/plans">
               <Route index element={<Plans />} /> {/* /dashboard/plans */}
-              <Route path="payment" element={<PaymentForm />} /> {/* /dashboard/plans/payment */}
-              <Route path="confirm" element={<ConfirmPayment />} />
               <Route path="success" element={<Success />} />
             </Route>
           </Routes>

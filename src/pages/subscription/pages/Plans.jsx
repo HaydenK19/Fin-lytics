@@ -1,25 +1,30 @@
-import React from "react";
+// src/pages/Plans.jsx
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Slider from "react-slick";
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, Alert } from "@mui/material";
 import PlanCard from "../components/PlanCard";
+import { createCheckoutSession } from "../subscriptionService";
 
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 
 const Plans = () => {
   const navigate = useNavigate();
+  const [loadingPlanTitle, setLoadingPlanTitle] = useState(null);
+  const [error, setError] = useState("");
 
+  // You said one plan is fine for now, but we can still keep the UI flexible.
   const plans = [
+    {
+      title: "Premium",
+      price: "$19.99/mo",
+      features: ["Advanced analytics", "Priority support", "Custom alerts"],
+    },
     {
       title: "Plus",
       price: "$9.99/mo",
       features: ["Basic analytics", "Portfolio tracking", "Email alerts"],
-    },
-    {
-      title: "Premium",
-      price: "$19.99/mo",
-      features: ["All Plus features", "Advanced analytics", "Custom alerts"],
     },
     {
       title: "Stock Legend",
@@ -28,9 +33,27 @@ const Plans = () => {
     },
   ];
 
-  const handleSelect = (plan) => {
-    // pass plan data to payment
-    navigate("payment", { state: { plan } });
+  const handleSelect = async (plan) => {
+    try {
+      setError("");
+      setLoadingPlanTitle(plan.title);
+
+      // Backend already knows which Stripe price to use (via STRIPE_PRICE_ID)
+      const data = await createCheckoutSession();
+
+      if (!data || !data.checkout_url) {
+        throw new Error("Missing checkout_url from backend");
+      }
+
+      // Hard redirect to Stripe Checkout
+      window.location.href = data.checkout_url;
+    } catch (err) {
+      console.error("Error creating checkout session:", err);
+      setError(
+        "Failed to start checkout. Make sure you are logged in and Stripe is configured, then try again."
+      );
+      setLoadingPlanTitle(null);
+    }
   };
 
   const settings = {
@@ -64,6 +87,12 @@ const Plans = () => {
         Upgrade your Fin-lytics experience with more data, insights, and smarter analytics.
       </Typography>
 
+      {error && (
+        <Box sx={{ width: "60%", maxWidth: 600, mx: "auto", mb: 3 }}>
+          <Alert severity="error">{error}</Alert>
+        </Box>
+      )}
+
       <Box
         sx={{
           width: "85%",
@@ -87,6 +116,8 @@ const Plans = () => {
               price={plan.price}
               features={plan.features}
               onSelect={() => handleSelect(plan)}
+              loading={loadingPlanTitle === plan.title}
+              disabled={!!loadingPlanTitle}
             />
           ))}
         </Slider>
