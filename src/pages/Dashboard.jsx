@@ -2,7 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import Sidebar from "../components/common/Sidebar";
 import DbNavbar from "../components/common/commonNavBar";
 import Budget from "./budget/budget";
-import Portfolio from "./portfolio/portfolio";
+import Overview from "./overview/Overview";
 import Stock from "./stock/stock";
 import StockInsights from "./stock/StockInsights";
 import Plans from "./subscription/pages/Plans";
@@ -10,16 +10,21 @@ import Success from "./subscription/pages/Success";
 
 const Dashboard = ({ isAuthenticated, setIsAuthenticated }) => {
   return (
-    <div className="dashboard-layout" style={{ paddingTop: "64px" }}>
+    <div className="dashboard-layout">
+      {/* Navbar fixed at top */}
       <DbNavbar
         isAuthenticated={isAuthenticated}
         setIsAuthenticated={setIsAuthenticated}
       />
+
       <div className="main-content">
+        {/* Permanent sidebar */}
         <Sidebar setIsAuthenticated={setIsAuthenticated} />
+
+        {/* Main content area */}
         <div className="content-area">
           <Routes>
-            <Route path="/" element={<Portfolio />} />
+            <Route path="/" element={<Overview />} />
             <Route path="/budget" element={<Budget />} />
             <Route path="/stock" element={<Stock />} />
             <Route path="/stock/:ticker" element={<StockInsights />} />
