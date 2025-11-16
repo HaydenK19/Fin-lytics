@@ -8,7 +8,7 @@ import {
   verifyCheckoutSession,
   getSubscriptionStatus,
   createPortalSession,
-} from "../services/subscriptionService";
+} from "../subscriptionService";
 
 const Success = () => {
   const navigate = useNavigate();

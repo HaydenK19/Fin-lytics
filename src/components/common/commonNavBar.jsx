@@ -36,7 +36,7 @@ const DbNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
     navigate("/");
   };
 
-  // Instant Stripe Checkout
+  // NEW — Instant Stripe Checkout
   const startCheckout = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -147,14 +147,6 @@ const DbNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
                 </MenuItem>
               )}
 
-              <MenuItem
-                onClick={() => {
-                  handleMenuClose();
-                  validateNavigation();
-                }}
-              >
-                Membership              
-              </MenuItem>
               <MenuItem
                 onClick={() => {
                   handleMenuClose();
