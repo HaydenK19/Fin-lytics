@@ -37,6 +37,13 @@ const SettingsBlock = () => {
   const [editingField, setEditingField] = useState(null);
   const [tempUserInfo, setTempUserInfo] = useState({});
   const [editingPassword, setEditingPassword] = useState(false);
+  const [hasSubscription, setHasSubscription] = useState(false);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+  const [subscriptionInfo, setSubscriptionInfo] = useState({
+    next_billing_date: null,
+    cancel_at: null,
+    subscription_status: null,
+  });
 
   // Check if user is already linked to Plaid
   useEffect(() => {
@@ -111,9 +118,33 @@ const SettingsBlock = () => {
       }
     };
 
+    const checkSubscriptionStatus = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await api.get("/stripe/subscription/status", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setHasSubscription(response.data.has_subscription);
+        setSubscriptionInfo({
+          next_billing_date: response.data.next_billing_date || null,
+          cancel_at: response.data.cancel_at || null,
+          subscription_status: response.data.subscription_status || null,
+        });
+      } catch (error) {
+        console.error("Error checking subscription status:", error);
+        setHasSubscription(false);
+        setSubscriptionInfo({
+          next_billing_date: null,
+          cancel_at: null,
+          subscription_status: null,
+        });
+      }
+    };
+
     fetchLinkToken();
     fetchUserSettings();
     fetchUserInfo();
+    checkSubscriptionStatus();
   }, []);
 
   // Handle successful Plaid Link connection
@@ -249,6 +280,35 @@ const SettingsBlock = () => {
 
   const handleToggleChange = (name, value) => {
     setSettings((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleManageSubscription = async () => {
+    try {
+      setSubscriptionLoading(true);
+      const token = localStorage.getItem("token");
+      const response = await api.post(
+        "/stripe/create-portal-session",
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      // Redirect to Stripe customer portal
+      if (response.data.portal_url) {
+        window.location.href = response.data.portal_url;
+      }
+    } catch (err) {
+      console.error("Error creating portal session:", err);
+      alert(
+        err.response?.data?.detail ||
+          "Failed to access subscription management. Please try again."
+      );
+    } finally {
+      setSubscriptionLoading(false);
+    }
   };
 
   return (
@@ -401,6 +461,48 @@ const SettingsBlock = () => {
               Edit Password
             </Button>
           )}
+
+          <Divider sx={{ my: 4 }} />
+
+          <Typography variant="h6">Subscription</Typography>
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              {hasSubscription
+                ? "You have an active subscription"
+                : "No active subscription"}
+            </Typography>
+            
+            {/* Display billing information */}
+            {hasSubscription && subscriptionInfo.cancel_at && (
+              <Typography variant="body2" sx={{ mb: 1, color: "warning.main" }}>
+                Subscription ends on: {new Date(subscriptionInfo.cancel_at).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </Typography>
+            )}
+            
+            {hasSubscription && !subscriptionInfo.cancel_at && subscriptionInfo.next_billing_date && (
+              <Typography variant="body2" sx={{ mb: 1, color: "text.secondary" }}>
+                Next billing date: {new Date(subscriptionInfo.next_billing_date).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </Typography>
+            )}
+            
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleManageSubscription}
+              disabled={subscriptionLoading || !hasSubscription}
+              sx={{ mt: 1 }}
+            >
+              {subscriptionLoading ? "Loading..." : "Manage Subscription"}
+            </Button>
+          </Box>
 
           <Divider sx={{ my: 4 }} />
 
