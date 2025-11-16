@@ -45,4 +45,3 @@ def cleanup_prediction_service():
         logger.info("Prediction service cleaned up successfully")
     except Exception as e:
         logger.error(f"Error cleaning up prediction service: {e}")
-
