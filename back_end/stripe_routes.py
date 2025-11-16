@@ -396,26 +396,31 @@ async def create_checkout_session(
         # If a product ID was provided instead of a price ID, try to get the price ID automatically
         price_id = SUBSCRIPTION_PRICE_ID
         if SUBSCRIPTION_PRICE_ID.startswith("prod_"):
-            # Try to automatically retrieve the price ID from the product
             retrieved_price_id = get_price_id_from_product(SUBSCRIPTION_PRICE_ID)
             if retrieved_price_id:
                 price_id = retrieved_price_id
-                print(f"INFO: Automatically retrieved price ID '{price_id}' from product ID '{SUBSCRIPTION_PRICE_ID}'. "
-                      "Consider updating STRIPE_PRICE_ID in .env to use the price ID directly.")
+                print(
+                    f"INFO: Automatically retrieved price ID '{price_id}' "
+                    f"from product ID '{SUBSCRIPTION_PRICE_ID}'. "
+                    "Consider updating STRIPE_PRICE_ID in .env to use the price ID directly."
+                )
             else:
                 raise HTTPException(
                     status_code=500,
-                    detail=f"Invalid STRIPE_PRICE_ID format. You provided a product ID '{SUBSCRIPTION_PRICE_ID}', but it must be a Price ID (starting with 'price_'). "
-                           "Go to Stripe Dashboard > Products > Your Product > Pricing, and copy the Price ID (it starts with 'price_')."
+                    detail=(
+                        f"Invalid STRIPE_PRICE_ID format. Provided product ID '{SUBSCRIPTION_PRICE_ID}', "
+                        "but a Price ID (starting with 'price_') is required."
+                    )
                 )
         elif not SUBSCRIPTION_PRICE_ID.startswith("price_"):
             raise HTTPException(
                 status_code=500,
-                detail=f"Invalid STRIPE_PRICE_ID format. Expected a price ID (starting with 'price_') but got '{SUBSCRIPTION_PRICE_ID}'. "
-                       "Go to Stripe Dashboard > Products > Your Product > Pricing, and copy the Price ID."
+                detail=(
+                    f"Invalid STRIPE_PRICE_ID format. Expected a price ID starting with 'price_', "
+                    f"but got '{SUBSCRIPTION_PRICE_ID}'."
+                )
             )
         
-        # Create checkout session
         checkout_session = stripe.checkout.Session.create(
             customer_email=user_model.email,
             payment_method_types=["card"],
@@ -424,14 +429,18 @@ async def create_checkout_session(
                 "quantity": 1,
             }],
             mode="subscription",
-            success_url=f"http://localhost:5173/stock?session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url="http://localhost:5173/stock?canceled=true",
+            success_url="http://localhost:5173/plans/success?session_id={CHECKOUT_SESSION_ID}",
+            cancel_url="http://localhost:5173/plans/success?canceled=true",
             metadata={
                 "user_id": str(user_model.id),
             },
         )
+        # -------------------------------------------------------------
         
-        return {"checkout_url": checkout_session.url, "session_id": checkout_session.id}
+        return {
+            "checkout_url": checkout_session.url,
+            "session_id": checkout_session.id
+        }
     
     except InvalidRequestError as e:
         raise HTTPException(status_code=400, detail=f"Stripe error: {str(e)}")
@@ -611,4 +620,3 @@ def check_subscription(user: dict, db: Session) -> bool:
     if not user_model:
         return False
     return user_model.subscription_status == "active"
-

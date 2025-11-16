@@ -22,16 +22,13 @@ const DbNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [hasSubscription, setHasSubscription] = useState(false);
+
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleMenuOpen = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
+  const handleMenuOpen = (event) => setAnchorEl(event.currentTarget);
+  const handleMenuClose = () => setAnchorEl(null);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -39,57 +36,85 @@ const DbNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
     navigate("/");
   };
 
-  const validateNavigation = () => {
-    if (location.pathname === "/plans") {
-      console.warn("Already on /plans — skipping navigation.");
-      return;
-    }
+  // 🔥 NEW — Instant Stripe Checkout
+  const startCheckout = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return navigate("/login");
 
-    navigate("/Plans");
+      const res = await fetch(
+        "http://localhost:8000/stripe/create-checkout-session",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.error("Stripe checkout error:", data);
+        alert(data.detail || "Failed to start checkout.");
+        return;
+      }
+
+      window.location.href = data.checkout_url; // 🔥 Straight to Stripe
+    } catch (err) {
+      console.error("Checkout failed:", err);
+      alert("Could not start checkout. Try again.");
+    }
   };
 
+  // 🔥 Fetch user + subscription status on login
   useEffect(() => {
-    const fetchUser = async () => {
+    const fetchUserAndSubscription = async () => {
       try {
         const token = localStorage.getItem("token");
-        if (token) {
-          const response = await fetch("http://localhost:8000/", {
+        if (!token) {
+          navigate("/login");
+          return;
+        }
+
+        // --- Fetch User Info ---
+        const res = await fetch("http://localhost:8000/", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) {
+          navigate("/login");
+          return;
+        }
+
+        const userData = await res.json();
+        setUser(userData);
+
+        // --- Fetch Subscription Status ---
+        const subRes = await fetch(
+          "http://localhost:8000/stripe/subscription/status",
+          {
             headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!response.ok) {
-            if (response.status === 401) {
-              console.error("Unauthorized: Redirecting to login.");
-              navigate("/login");
-            }
-            throw new Error("Unauthorized");
           }
+        );
 
-          const contentType = response.headers.get("Content-Type");
-          if (!contentType || !contentType.includes("application/json")) {
-            throw new Error("Invalid JSON response");
-          }
-
-          const data = await response.json();
-          setUser(data);
-        } else {
-          console.error("No token found. Redirecting to login.");
-          navigate("/login");
+        if (subRes.ok) {
+          const subData = await subRes.json();
+          setHasSubscription(subData.has_subscription === true);
         }
-      } catch (error) {
-        console.error("Failed to fetch user data", error);
-        if (error.message === "Unauthorized" || error.message === "Invalid JSON response") {
-          navigate("/login");
-        }
+      } catch (err) {
+        console.error("Auth/Subscription fetch error:", err);
       }
     };
 
     if (isAuthenticated) {
-      fetchUser();
+      fetchUserAndSubscription();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, navigate]);
 
   return (
-    <AppBar position="fixed" sx={{ backgroundColor: "white", color: "black", height: "64px" }}>
+    <AppBar
+      position="fixed"
+      sx={{ backgroundColor: "white", color: "black", height: "64px" }}
+    >
       <Toolbar>
         <Box sx={{ flexGrow: 1 }}>
           <img
@@ -99,6 +124,7 @@ const DbNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
             onClick={() => navigate("/")}
           />
         </Box>
+
         {isAuthenticated ? (
           <>
             <Avatar
@@ -107,19 +133,20 @@ const DbNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
               onClick={handleMenuOpen}
               sx={{ cursor: "pointer" }}
             />
-            <Menu
-              anchorEl={anchorEl}
-              open={Boolean(anchorEl)}
-              onClose={handleMenuClose}
-            >
-              <MenuItem
-                onClick={() => {
-                  handleMenuClose();
-                  validateNavigation();
-                }}
-              >
-                Membership              
-              </MenuItem>
+
+            <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
+              {/* Hide Membership if subscribed */}
+              {!hasSubscription && (
+                <MenuItem
+                  onClick={() => {
+                    handleMenuClose();
+                    startCheckout(); // redirect to Stripe Checkout
+                  }}
+                >
+                  Membership
+                </MenuItem>
+              )}
+
               <MenuItem
                 onClick={() => {
                   handleMenuClose();
@@ -128,6 +155,7 @@ const DbNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
               >
                 Settings
               </MenuItem>
+
               <MenuItem
                 onClick={() => {
                   handleMenuClose();
@@ -137,6 +165,8 @@ const DbNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
                 Logout
               </MenuItem>
             </Menu>
+
+            {/* Logout Confirmation Modal */}
             <Dialog
               open={logoutConfirmOpen}
               onClose={() => setLogoutConfirmOpen(false)}
@@ -146,14 +176,12 @@ const DbNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
                 <Typography>Are you sure you want to log out?</Typography>
               </DialogContent>
               <DialogActions>
-                <Button onClick={() => setLogoutConfirmOpen(false)} color="primary">
-                  Cancel
-                </Button>
-                <Button onClick={handleLogout} color="primary">
-                  Logout
-                </Button>
+                <Button onClick={() => setLogoutConfirmOpen(false)}>Cancel</Button>
+                <Button onClick={handleLogout}>Logout</Button>
               </DialogActions>
             </Dialog>
+
+            {/* Settings Modal */}
             <Dialog
               open={settingsOpen}
               onClose={() => setSettingsOpen(false)}
@@ -165,9 +193,7 @@ const DbNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
                 <SettingsBlock />
               </DialogContent>
               <DialogActions>
-                <Button onClick={() => setSettingsOpen(false)} color="primary">
-                  Close
-                </Button>
+                <Button onClick={() => setSettingsOpen(false)}>Close</Button>
               </DialogActions>
             </Dialog>
           </>
