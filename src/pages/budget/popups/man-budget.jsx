@@ -20,6 +20,7 @@ import {
     Box,
     Stack,
     Snackbar,
+    Alert,
     CircularProgress,
 } from "@mui/material";
 import CloseIcon from '@mui/icons-material/Close';
@@ -37,6 +38,7 @@ const ManageBudgets = ({ onClose }) => {
     const [annualSpending, setAnnualSpending] = useState(0);
     const [editingCategory, setEditingCategory] = useState(null);
     const [editForm, setEditForm] = useState({ name: "", weekly_limit: 0, color: "" });
+    const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
     //category options
     const commonCategories = [

@@ -170,11 +170,13 @@ const ProjectionsCard = () => {
             console.log('User transactions from API:', userTransactions);
             
             const recurringTxs = userTransactions.filter(tx => {
-                console.log('Checking transaction:', tx, 'is_recurring:', tx.is_recurring, 'recurring_enabled:', tx.recurring_enabled);
-                return tx.is_recurring && tx.recurring_enabled !== false;
+                console.log('Checking transaction:', tx, 'is_recurring:', tx.is_recurring, 'recurring_enabled:', tx.recurring_enabled, 'parent_transaction_id:', tx.parent_transaction_id);
+                return tx.is_recurring && 
+                       tx.recurring_enabled !== false && 
+                       !tx.parent_transaction_id; // Only include transactions that are NOT child instances
             });
             
-            console.log('Filtered recurring transactions:', recurringTxs);
+            console.log('Filtered recurring transactions (parents only):', recurringTxs);
             setRecurringTransactions(recurringTxs);
             
         } catch (error) {
@@ -674,7 +676,6 @@ const ProjectionsCard = () => {
                 open={recurringModalOpen} 
                 onClose={() => setRecurringModalOpen(false)}
                 maxWidth="sm"
-                fullWidth
             >
                 <DialogTitle>
                     Add Recurring Transaction
@@ -734,7 +735,6 @@ const ProjectedResults = ({ savingsGoal, timeframe, frequency, startDate, endDat
 
                 <Typography variant="subtitle2">Expenses Breakdown</Typography>
                 
-                {/* Manual Monthly Expenses */}
                 {monthlyExpenses.length > 0 && (
                     <>
                         <Typography variant="body2" sx={{ fontWeight: 500, mt: 1 }}>Manual Monthly Expenses:</Typography>
@@ -747,7 +747,6 @@ const ProjectedResults = ({ savingsGoal, timeframe, frequency, startDate, endDat
                     </>
                 )}
 
-                {/* Category Budget Expenses */}
                 {categoryBudgetExpenses > 0 && (
                     <>
                         <Typography variant="body2" sx={{ fontWeight: 500, mt: 1 }}>Category Budget Expenses:</Typography>
@@ -758,7 +757,6 @@ const ProjectedResults = ({ savingsGoal, timeframe, frequency, startDate, endDat
                     </>
                 )}
 
-                {/* Recurring Transaction Expenses */}
                 {recurringExpenses > 0 && (
                     <>
                         <Typography variant="body2" sx={{ fontWeight: 500, mt: 1 }}>Recurring Transaction Expenses:</Typography>
@@ -769,7 +767,6 @@ const ProjectedResults = ({ savingsGoal, timeframe, frequency, startDate, endDat
                     </>
                 )}
 
-                {/* Annual Goal Expenses */}
                 {annualExpenses > 0 && (
                     <>
                         <Typography variant="body2" sx={{ fontWeight: 500, mt: 1 }}>Annual Goal Expenses:</Typography>
@@ -875,22 +872,19 @@ const RecurringTransactionWidget = ({ onSuccess }) => {
 
     return (
         <Box component="form" onSubmit={handleSubmit} sx={{ 
-            p: 3, 
-            border: 1, 
-            borderColor: 'divider', 
-            borderRadius: 1,
-            backgroundColor: 'background.paper',
-            minWidth: 500,
-            width: '100%'
+            p: 2,
+            width: '100%',
+            maxWidth: 400
         }}>
             <Stack spacing={3}>
-                <Grid container spacing={3}>
+                <Grid container spacing={2}>
                     <Grid size={{ xs: 12, sm: 6 }}>
                         <TextField
                             label="Merchant/Description *"
                             value={formData.merchant_name}
                             onChange={(e) => setFormData(prev => ({ ...prev, merchant_name: e.target.value }))}
                             fullWidth
+                            size="small"
                         />
                     </Grid>
                     <Grid size={{ xs: 12, sm: 6 }}>
@@ -904,14 +898,15 @@ const RecurringTransactionWidget = ({ onSuccess }) => {
                                 }
                             }}
                             fullWidth
+                            size="small"
                             inputProps={{ inputMode: 'decimal' }}
                         />
                     </Grid>
                 </Grid>
 
-                <Grid container spacing={3}>
+                <Grid container spacing={2}>
                     <Grid size={{ xs: 12, sm: 6 }}>
-                        <FormControl fullWidth>
+                        <FormControl fullWidth size="small">
                             <InputLabel>Category *</InputLabel>
                             <Select
                                 value={formData.category}
@@ -925,7 +920,7 @@ const RecurringTransactionWidget = ({ onSuccess }) => {
                         </FormControl>
                     </Grid>
                     <Grid size={{ xs: 12, sm: 6 }}>
-                        <FormControl fullWidth>
+                        <FormControl fullWidth size="small">
                             <InputLabel>Frequency</InputLabel>
                             <Select
                                 value={formData.frequency_type}
@@ -941,7 +936,7 @@ const RecurringTransactionWidget = ({ onSuccess }) => {
                 </Grid>
 
                 {formData.frequency_type === 'weekly' && (
-                    <FormControl fullWidth>
+                    <FormControl fullWidth size="small">
                         <InputLabel>Day of Week</InputLabel>
                         <Select
                             value={formData.week_day}
@@ -968,6 +963,7 @@ const RecurringTransactionWidget = ({ onSuccess }) => {
                             }
                         }}
                         fullWidth
+                        size="small"
                         inputProps={{ inputMode: 'numeric' }}
                     />
                 )}
@@ -978,6 +974,7 @@ const RecurringTransactionWidget = ({ onSuccess }) => {
                     value={formData.end_date}
                     onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
                     fullWidth
+                    size="small"
                     InputLabelProps={{ shrink: true }}
                 />
 
@@ -986,7 +983,7 @@ const RecurringTransactionWidget = ({ onSuccess }) => {
                         type="submit"
                         variant="contained"
                         disabled={loading}
-                        sx={{ minWidth: 150, py: 1.5 }}
+                        sx={{ minWidth: 150, py: 1 }}
                     >
                         {loading ? 'Creating...' : 'Add Recurring Transaction'}
                     </Button>

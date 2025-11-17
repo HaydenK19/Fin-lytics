@@ -324,8 +324,11 @@ async def get_user_transactions(
             if end_date:
                 user_txns = user_txns.filter(User_Transactions.date <= end_dt)
             if recurring_only:
-                # Filter for recurring transactions only
-                user_txns = user_txns.filter(User_Transactions.is_recurring == True)
+                # Filter for recurring transactions only - exclude generated instances (child transactions)
+                user_txns = user_txns.filter(
+                    User_Transactions.is_recurring == True,
+                    User_Transactions.parent_transaction_id == None
+                )
             
             user_txns = user_txns.all()
             print(f"[USER_TRANSACTIONS] Retrieved {len(user_txns)} user transactions")
