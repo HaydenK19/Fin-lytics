@@ -62,7 +62,8 @@ class StockPredictionService:
                 'apikey': self.fmp_api_key
             }
             
-            response = requests.get(url, params=params)
+            # Add timeout to prevent indefinite hangs
+            response = requests.get(url, params=params, timeout=60)
             response.raise_for_status()
             
             data = response.json()
@@ -305,9 +306,13 @@ class StockPredictionService:
             logger.warning("Prediction service is already running")
             return
         
-        if not self.load_model():
-            logger.error("Failed to load model, cannot start predictions")
-            return
+        # Only load model if not already loaded (avoid redundant loading)
+        if self.predictor is None:
+            if not self.load_model():
+                logger.error("Failed to load model, cannot start predictions")
+                return
+        else:
+            logger.info("Model already loaded, skipping reload")
         
         self.is_running = True
         self.prediction_thread = threading.Thread(
@@ -371,7 +376,8 @@ class StockPredictionService:
         try:
             url = f"{self.fmp_base_url}/stock_market/{mover_type}"
             params = {"apikey": self.fmp_api_key}
-            response = requests.get(url, params=params)
+            # Add timeout to prevent indefinite hangs
+            response = requests.get(url, params=params, timeout=10)
             response.raise_for_status()
             data = response.json()
 

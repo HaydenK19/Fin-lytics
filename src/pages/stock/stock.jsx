@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Box,
   Container,
@@ -15,6 +15,8 @@ import {
 } from "@mui/material";
 
 import SearchBar from "../../components/common/SearchBar";
+import Paywall from "../../components/paywall/Paywall";
+import api from "../../api";
 
 function Stock() {
   // ---- State variables ----
@@ -26,7 +28,10 @@ function Stock() {
   const [usedHistorical, setUsedHistorical] = useState(false);
   const [predictions, setPredictions] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [hasSubscription, setHasSubscription] = useState(false);
+  const [checkingSubscription, setCheckingSubscription] = useState(true);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const companyCache = useRef({});
 
   /** Fetch top gainers and losers */
@@ -157,12 +162,19 @@ function Stock() {
     }
   }
 
-    /** Auto-refresh Chronos predictions every 5 min */
+    /** Check subscription status on mount */
     useEffect(() => {
-        fetchChronosPredictions();
-        const predInt = setInterval(() => fetchChronosPredictions(true), 5 * 60 * 1000);
-        return () => clearInterval(predInt);
+        checkSubscriptionStatus();
     }, []);
+
+    /** Auto-refresh Chronos predictions every 5 min (only if subscribed) */
+    useEffect(() => {
+        if (hasSubscription) {
+            fetchChronosPredictions();
+            const predInt = setInterval(() => fetchChronosPredictions(true), 5 * 60 * 1000);
+            return () => clearInterval(predInt);
+        }
+    }, [hasSubscription]);
 
     /** Auto-refresh market movers every 5 min */
     useEffect(() => {
@@ -172,6 +184,89 @@ function Stock() {
     }, []);
 
   const handleRowClick = (ticker) => navigate(`${ticker}`);
+
+  /** Check subscription status */
+  async function checkSubscriptionStatus() {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setCheckingSubscription(false);
+        return;
+      }
+
+      // Check if user just completed checkout - verify session first
+      const sessionId = searchParams.get("session_id");
+      if (sessionId) {
+        try {
+          // Verify the checkout session and update subscription status
+          const verifyResponse = await api.post(
+            "/stripe/verify-session",
+            { session_id: sessionId },
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+
+          if (verifyResponse.data.success) {
+            console.log("Subscription verified and activated:", verifyResponse.data.message);
+            // Remove session_id from URL
+            window.history.replaceState({}, "", "/stock");
+          } else {
+            console.warn("Session verification returned:", verifyResponse.data.message);
+          }
+        } catch (verifyErr) {
+          console.error("Error verifying session:", verifyErr);
+          // Continue to check subscription status even if verification fails
+        }
+      }
+
+      // Check current subscription status
+      const response = await api.get("/stripe/subscription/status", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      setHasSubscription(response.data.has_subscription);
+    } catch (err) {
+      console.error("Error checking subscription status:", err);
+      // If error, assume no subscription to show paywall
+      setHasSubscription(false);
+    } finally {
+      setCheckingSubscription(false);
+    }
+  }
+
+  const handleSubscribeSuccess = () => {
+    setHasSubscription(true);
+    // Reload predictions once subscription is active
+    fetchChronosPredictions(true);
+  };
+
+  // Show paywall if checking subscription or if no subscription
+  if (checkingSubscription) {
+    return (
+      <Container maxWidth="lg" sx={{ mt: 4, textAlign: "center" }}>
+        <CircularProgress />
+      </Container>
+    );
+  }
+
+  if (!hasSubscription) {
+    return (
+      <Container maxWidth="lg" sx={{ mt: 4 }}>
+        <Typography variant="h4" fontWeight={700} textAlign="center" gutterBottom>
+          Stock Predictions Dashboard
+        </Typography>
+        <Box display="flex" justifyContent="center" mb={3}>
+          <SearchBar placeholder="Search or jump to stock..." />
+        </Box>
+        <Paywall onSubscribeSuccess={handleSubscribeSuccess} />
+      </Container>
+    );
+  }
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4 }}>

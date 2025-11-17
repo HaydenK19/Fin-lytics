@@ -6,7 +6,7 @@ import './login.scss';
 
 const LoginBlock = ({ isSigningUp: initialSigningUp, setIsAuthenticated }) => {
     const [isSigningUp, setIsSigningUp] = useState(true);
-    const [step, setStep] = useState(1); // Step state for multi-page signup
+    const [step, setStep] = useState(1);
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
     const [email, setEmail] = useState("");
@@ -62,9 +62,14 @@ const LoginBlock = ({ isSigningUp: initialSigningUp, setIsAuthenticated }) => {
                 "Authentication error:",
                 error.response ? error.response.data : error.message
             );
-            alert("Authentication failed. Please check your credentials and try again.");
-        } finally {
-            setIsLoading(false);
+            
+            // use the specific error message from the API, or fall back to a generic message
+            let errorMessage = "Authentication failed. Please check your credentials and try again.";
+            if (error.response && error.response.data && error.response.data.detail) {
+                errorMessage = error.response.data.detail;
+            }
+            
+            alert(errorMessage);
         }
     };
 

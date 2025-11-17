@@ -1,5 +1,6 @@
 from fastapi import FastAPI, status, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 import models
 import plaid_routes
 from database import engine, SessionLocal
@@ -11,15 +12,25 @@ import user_info
 import user_settings
 import user_categories
 import stock_routes
+import overview_routes
 import pie_chart
 import user_balances
 import user_transactions
 import entered_transactions
 import balance_routes
+import stripe_routes
 from startup import initialize_prediction_service, cleanup_prediction_service
-import atexit
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Initialize prediction service in background (non-blocking)
+    # This runs in a separate thread so it doesn't block server startup
+    initialize_prediction_service()
+    yield
+    # Shutdown: Cleanup
+    cleanup_prediction_service()
+
+app = FastAPI(lifespan=lifespan)
 
 origins = [
     "https://localhost:5173",
@@ -41,21 +52,17 @@ app.include_router(user_info.router)
 app.include_router(user_settings.router)
 app.include_router(user_categories.router)
 app.include_router(stock_routes.router)
+app.include_router(overview_routes.router)
 app.include_router(pie_chart.router)
 app.include_router(user_balances.router)
 app.include_router(user_transactions.router)
 app.include_router(entered_transactions.router)
 app.include_router(balance_routes.router)
+app.include_router(stripe_routes.router)
 
 
 # Create MySQL tables (make sure this is called at least once)
 models.Base.metadata.create_all(bind=engine)
-
-# Initialize prediction service
-initialize_prediction_service()
-
-# Register cleanup function
-atexit.register(cleanup_prediction_service)
 
 def get_db():
     db = SessionLocal()
