@@ -729,3 +729,71 @@ async def get_investments(
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/investments/holdings")
+async def get_investment_holdings(
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    """
+    Return the user's holdings across all investment accounts,
+    enriched with live price and daily change data from FMP.
+    """
+    try:
+        fmp_api_key = os.getenv("FMP_API_KEY")
+        base_url = "https://financialmodelingprep.com/api/v3"
+
+        holdings = (
+            db.query(Plaid_Investment_Holding)
+            .join(Plaid_Investment, Plaid_Investment.account_id == Plaid_Investment_Holding.account_id)
+            .filter(Plaid_Investment.user_id == user["id"])
+            .all()
+        )
+
+        if not holdings:
+            return {"holdings": [], "count": 0}
+
+        result = []
+        for h in holdings:
+            symbol = h.symbol or None
+            current_price = h.price or 0
+            value = (h.quantity or 0) * current_price
+            daily_change = 0.0
+            daily_change_percent = 0.0
+
+            # Fetch daily quote data if symbol available
+            if symbol:
+                try:
+                    quote_url = f"{base_url}/quote/{symbol.upper()}"
+                    res = requests.get(quote_url, params={"apikey": fmp_api_key}, timeout=5)
+                    res.raise_for_status()
+                    quote = res.json()
+                    if quote and isinstance(quote, list):
+                        q = quote[0]
+                        current_price = float(q.get("price", current_price))
+                        change_val = float(q.get("change", 0))
+                        change_pct = float(str(q.get("changesPercentage", "0")).replace("%", "").replace("+", ""))
+                        daily_change = change_val
+                        daily_change_percent = change_pct
+                        value = current_price * (h.quantity or 0)
+                except Exception as e:
+                    print(f"FMP fetch error for {symbol}: {e}")
+
+            result.append({
+                "symbol": symbol,
+                "name": h.name,
+                "quantity": round(h.quantity or 0, 4),
+                "price": round(current_price, 2),
+                "value": round(value, 2),
+                "daily_change": round(daily_change, 2),
+                "daily_change_percent": round(daily_change_percent, 2),
+                "currency": h.currency,
+            })
+
+        return {"holdings": result, "count": len(result)}
+
+    except Exception as e:
+        import traceback
+        print("HOLDINGS FETCH ERROR:", traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Failed to fetch holdings: {str(e)}")
+

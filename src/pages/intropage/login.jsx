@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { Box, Button, TextField, Typography, IconButton } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
+import { Box, Button, TextField, Typography, CircularProgress } from '@mui/material';
+import './login.scss';
 
-const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuthenticated }) => {
+const LoginBlock = ({ isSigningUp: initialSigningUp, setIsAuthenticated }) => {
     const [isSigningUp, setIsSigningUp] = useState(true);
-    const [step, setStep] = useState(1); // Step state for multi-page signup
+    const [step, setStep] = useState(1);
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
     const [email, setEmail] = useState("");
@@ -14,6 +14,7 @@ const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuth
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -27,6 +28,8 @@ const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuth
             alert("Passwords do not match!");
             return;
         }
+
+        setIsLoading(true);
 
         try {
             if (isSigningUp) {
@@ -59,34 +62,28 @@ const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuth
                 "Authentication error:",
                 error.response ? error.response.data : error.message
             );
-            alert("Authentication failed. Please check your credentials and try again.");
+            
+            // use the specific error message from the API, or fall back to a generic message
+            let errorMessage = "Authentication failed. Please check your credentials and try again.";
+            if (error.response && error.response.data && error.response.data.detail) {
+                errorMessage = error.response.data.detail;
+            }
+            
+            alert(errorMessage);
         }
     };
 
     return (
-        <Box
-            sx={{
-                position: 'fixed',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: 400,
-                bgcolor: 'background.paper',
-                boxShadow: 24,
-                p: 4,
-                borderRadius: 2,
-            }}
-        >
-            <IconButton
-                sx={{ position: 'absolute', top: 8, right: 8 }}
-                onClick={toggleLoginBlock}
-            >
-                <CloseIcon />
-            </IconButton>
-            <Typography variant="h5" component="h2" gutterBottom>
-                {isSigningUp ? (step === 1 ? 'Sign Up' : 'Make your Account') : 'Log In'}
+        <Box className="login-container">
+            <Typography variant="h4" component="h1" className="login-title" gutterBottom>
+                {isSigningUp ? (step === 1 ? 'Create Account' : 'Complete Sign Up') : 'Welcome Back'}
             </Typography>
-            <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
+            <Typography variant="body1" className="login-subtitle" sx={{ mb: 3, color: 'text.secondary' }}>
+                {isSigningUp 
+                    ? 'Join Finlytics and take control of your financial future' 
+                    : 'Sign in to access your dashboard'}
+            </Typography>
+            <Box component="form" onSubmit={handleSubmit} className="login-form">
                 {isSigningUp && step === 1 && (
                     <>
                         <TextField
@@ -167,8 +164,9 @@ const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuth
                             fullWidth
                             sx={{ mt: 2 }}
                             type="submit"
+                            disabled={isLoading}
                         >
-                            Submit
+                            {isLoading ? 'Creating Account...' : 'Submit'}
                         </Button>
                         <Button
                             variant="text"
@@ -176,6 +174,7 @@ const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuth
                             fullWidth
                             sx={{ mt: 1 }}
                             onClick={() => setStep(1)}
+                            disabled={isLoading}
                         >
                             Back
                         </Button>
@@ -190,6 +189,7 @@ const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuth
                             onChange={(e) => setUsername(e.target.value)}
                             margin="normal"
                             required
+                            disabled={isLoading}
                         />
                         <TextField
                             fullWidth
@@ -199,6 +199,7 @@ const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuth
                             onChange={(e) => setPassword(e.target.value)}
                             margin="normal"
                             required
+                            disabled={isLoading}
                         />
                         <Button
                             type="submit"
@@ -206,21 +207,45 @@ const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuth
                             color="primary"
                             fullWidth
                             sx={{ mt: 2 }}
+                            disabled={isLoading}
                         >
-                            Log In
+                            {isLoading ? 'Logging In...' : 'Log In'}
                         </Button>
                     </>
                 )}
             </Box>
-            {isSigningUp && step === 1 && (
-                <Typography
-                    variant="body2"
-                    sx={{ mt: 2, textAlign: 'center', cursor: 'pointer' }}
-                    onClick={() => setIsSigningUp(false)}
-                >
-                    Already have an account? Log In
-                </Typography>
-            )}
+            <Box className="login-footer">
+                {isSigningUp && step === 1 && (
+                    <Typography
+                        variant="body2"
+                        sx={{ 
+                            textAlign: 'center', 
+                            cursor: isLoading ? 'default' : 'pointer', 
+                            color: 'primary.main',
+                            opacity: isLoading ? 0.5 : 1,
+                            pointerEvents: isLoading ? 'none' : 'auto'
+                        }}
+                        onClick={() => !isLoading && setIsSigningUp(false)}
+                    >
+                        Already have an account? <strong>Log In</strong>
+                    </Typography>
+                )}
+                {!isSigningUp && (
+                    <Typography
+                        variant="body2"
+                        sx={{ 
+                            textAlign: 'center', 
+                            cursor: isLoading ? 'default' : 'pointer', 
+                            color: 'primary.main',
+                            opacity: isLoading ? 0.5 : 1,
+                            pointerEvents: isLoading ? 'none' : 'auto'
+                        }}
+                        onClick={() => !isLoading && setIsSigningUp(true)}
+                    >
+                        Don't have an account? <strong>Sign Up</strong>
+                    </Typography>
+                )}
+            </Box>
         </Box>
     );
 };
