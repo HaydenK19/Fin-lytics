@@ -59,7 +59,14 @@ const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuth
                 "Authentication error:",
                 error.response ? error.response.data : error.message
             );
-            alert("Authentication failed. Please check your credentials and try again.");
+            
+            // Use the specific error message from the API, or fall back to a generic message
+            let errorMessage = "Authentication failed. Please check your credentials and try again.";
+            if (error.response && error.response.data && error.response.data.detail) {
+                errorMessage = error.response.data.detail;
+            }
+            
+            alert(errorMessage);
         }
     };
 

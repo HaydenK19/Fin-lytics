@@ -10,7 +10,6 @@ plaid-python
 python-dotenv
 pymysql
 requests
-sendgrid
 autogluon.timeseries
 pandas
 matplotlib
@@ -19,3 +18,4 @@ autogluon
 openpyxl
 tzdata
 stripe
+boto3
