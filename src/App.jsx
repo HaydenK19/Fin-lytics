@@ -3,6 +3,7 @@ import React, { useState, useEffect, createContext } from "react";
 import axios from "axios";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { muiTheme } from './theme'; 
 
 import Intropage from "./pages/intropage/Intropage";
 import Dashboard from "./pages/Dashboard";
@@ -11,30 +12,7 @@ import About from "./pages/about/About";
 
 import IntroNavbar from "./components/intro/IntroNavbar";
 
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#749181',
-    },
-    secondary: {
-      main: '#E0C2FF',
-    },
-  },
-  typography: {
-    fontFamily: 'Quicksand, sans-serif',
-  },
-  components: {
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          fontFamily: 'Quicksand, sans-serif',
-          fontWeight: 'bold',
-          fontSize: '15px',
-        },
-      },
-    },
-  },
-});
+const theme = createTheme(muiTheme);
 
 // create context to share across app
 export const UserContext = createContext(null);

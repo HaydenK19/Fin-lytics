@@ -26,19 +26,19 @@ const About = () => {
             name: "Lilly Ngo",
             bio: "Computer Science major graduating Spring 2025. Focused on frontend development and user experience design for Fin-lytics.",
             linkedin: "https://linkedin.com/in/ADD YOUR LINKED IN",
-            role: "Frontend Developer & UX Designer"
+            role: "Full-Stack Developer"
         },
         {
             name: "Hayden Komasz",
             bio: "Software Engineering major graduating Spring 2025. Specialized in backend architecture and API development for financial data integration.",
             linkedin: "https://linkedin.com/in/ADD YOUR LINKED IN",
-            role: "Full-Stack Developer"
+            role: "Full-Stack Dev."
         },
         {
             name: "Adam Plankey",
             bio: "Computer Science major graduating Spring 2025. Concentrated on AI/ML implementation and data analytics for stock prediction features.",
             linkedin: "https://linkedin.com/in/ADD YOUR LINKED IN",
-            role: "AI/ML Engineer & Data Analytics"
+            role: "Backend Developer"
         },
         {
             name: "Thomas Pearson",
@@ -197,7 +197,6 @@ const About = () => {
                                             }}
                                             onClick={() => {
                                                 if (!isCenter) {
-                                                    // Determine slide direction based on which card was clicked
                                                     const direction = position === 'prev' ? -1 : 1;
                                                     setSlideDirection(direction);
                                                     setFadeIn(false);
@@ -431,9 +430,8 @@ const About = () => {
                                 The Challenge
                             </Typography>
                             <Typography variant="body1" paragraph sx={{ lineHeight: 1.8 }}>
-                                In a world crowded with financial apps, we saw an opportunity to do something different.
-                                Despite the abundance of tools available, many young people still find financial literacy and money management out of reach.
-                                We set out to change that by creating a solution that’s accessible, engaging, and truly empowering.
+                                In a world crowded with financial platforms, we saw an opportunity to do something different. Despite the wide range of tools available, many retail traders and newcomers still find investing and financial management complex and inaccessible. We set out to change that by creating a solution that’s approachable, engaging, and genuinely empowering.
+
                             </Typography>
                         </Grid>
                         
