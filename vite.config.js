@@ -5,4 +5,12 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   base: "/",
   plugins: [react()],
+  preview: {
+    port: process.env.PORT || 5173,
+    host: true
+  },
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets'
+  }
 })

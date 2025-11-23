@@ -7,6 +7,33 @@
 
 ---
 
+## 🚀 Deployment
+
+### Railway Deployment
+This project is configured to deploy on Railway. The configuration includes:
+- `railway.toml` - Railway deployment configuration
+- `nixpacks.toml` - Build configuration for Nixpacks
+- `.railwayignore` - Files to exclude from deployment
+
+To deploy:
+1. Connect your GitHub repository to Railway
+2. Railway will automatically detect the configuration and deploy
+3. The app will be available at your Railway domain
+
+### Local Development
+```bash
+npm install
+npm run dev
+```
+
+### Build for Production
+```bash
+npm run build
+npm start
+```
+
+---
+
 ## Features
 - **User Authentication**: Secure login system to protect user data.
 

@@ -1,0 +1,26 @@
+# Development files
+node_modules/
+.env.local
+.env.development
+.vscode/
+*.log
+
+# AI model files (too large for frontend deployment)
+AI_model/
+back_end/
+
+# Git files
+.git/
+.gitignore
+
+# Development builds
+.cache/
+coverage/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
