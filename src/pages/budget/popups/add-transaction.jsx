@@ -1,15 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Box, FormControl, InputLabel, Select, MenuItem, IconButton, FormControlLabel, Checkbox, Typography } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 
-export default function AddTransactionDialog({ open, onClose, defaultDate, onCreated }) {
+export default function AddTransactionDialog({ open, onClose, defaultDate, onCreated, initialData = null, isEdit = false, onSubmit = null }) {
   const [merchant, setMerchant] = useState('');
+  const [transactionId, setTransactionId] = useState(null);
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
+  
   const [date, setDate] = useState(defaultDate ? defaultDate : new Date().toISOString().slice(0,10));
   const [isRecurring, setIsRecurring] = useState(false);
+  const [isIncome, setIsIncome] = useState(false);
   const [frequencyType, setFrequencyType] = useState('monthly'); // 'weekly', 'monthly', 'yearly'
   const [weekDay, setWeekDay] = useState('monday'); //  weekly recurring
   const [monthDay, setMonthDay] = useState(1); //  monthly recurring (1-31)
@@ -63,10 +66,15 @@ export default function AddTransactionDialog({ open, onClose, defaultDate, onCre
       // calculate end date if not provided (default to 1 year from start date)
       const calculatedEndDate = endDate || new Date(new Date(date).getTime() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0,10);
       
+      // Normalize amount: default to expense (negative) unless marked as income
+      let amt = parseFloat(amount);
+      if (isNaN(amt)) amt = 0;
+      if (!isIncome && amt > 0) amt = -amt;
+
       const payload = {
-        transaction_id: uuidv4(),
+        transaction_id: transactionId || uuidv4(),
         account_id: 'manual',
-        amount: parseFloat(amount),
+        amount: amt,
         currency: 'USD',
         category: category,
         merchant_name: merchant,
@@ -83,20 +91,28 @@ export default function AddTransactionDialog({ open, onClose, defaultDate, onCre
           end_date: calculatedEndDate
         })
       };
-      const resp = await axios.post('http://localhost:8000/user_transactions/', payload, {
-        headers: { Authorization: `Bearer ${token}` },
-        withCredentials: true,
-      });
+      if (onSubmit) {
+        // Delegate submit handling (edit or custom) to caller
+        await onSubmit(payload);
+      } else {
+        const resp = await axios.post('http://localhost:8000/user_transactions/', payload, {
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true,
+        });
+        if (onCreated) onCreated(payload);
+      }
       setLoading(false);
-      if (onCreated) onCreated(payload);
       onClose();
       
       // Reset form
       setMerchant('');
+      setTransactionId(null);
       setAmount('');
       setCategory('');
+      
       setDate(new Date().toISOString().slice(0,10));
       setIsRecurring(false);
+      setIsIncome(false);
       setFrequencyType('monthly');
       setWeekDay('monday');
       setMonthDay(1);
@@ -109,10 +125,51 @@ export default function AddTransactionDialog({ open, onClose, defaultDate, onCre
     }
   };
 
+  // populate form when editing
+  useEffect(() => {
+    if (initialData) {
+      const normalizeForInput = (d) => {
+        if (!d) return (defaultDate ? defaultDate : new Date().toISOString().slice(0,10));
+        // if already a YYYY-MM-DD string, use as-is
+        if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+        const dt = new Date(d);
+        // use local date components to avoid timezone shifts
+        const y = dt.getFullYear();
+        const m = String(dt.getMonth() + 1).padStart(2, '0');
+        const day = String(dt.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+
+      setTransactionId(initialData.transaction_id || null);
+      setMerchant(initialData.merchant_name || '');
+      setAmount(initialData.amount !== undefined ? Math.abs(initialData.amount).toString() : '');
+      setCategory(initialData.category || '');
+      
+      setDate(normalizeForInput(initialData.date));
+      setIsRecurring(!!initialData.is_recurring);
+      setIsIncome((initialData.amount || 0) > 0);
+    } else if (!open) {
+      // reset when dialog closed
+      setTransactionId(null);
+      setMerchant('');
+      setAmount('');
+      setCategory('');
+      setDate(defaultDate ? defaultDate : new Date().toISOString().slice(0,10));
+      setIsRecurring(false);
+      setIsIncome(false);
+    }
+  }, [initialData, open]);
+
   return (
-          <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+          <Dialog
+            open={open}
+            onClose={onClose}
+            maxWidth="sm"
+            fullWidth
+            PaperProps={isEdit ? { sx: { mt: 6 } } : {}}
+          >
         <DialogTitle sx={{ position: 'relative' }}>
-          Add Transaction
+          {isEdit ? 'Edit Transaction' : 'Add Transaction'}
           <IconButton
             aria-label="close"
             onClick={onClose}
@@ -136,14 +193,28 @@ export default function AddTransactionDialog({ open, onClose, defaultDate, onCre
             fullWidth 
           />
           
-          <TextField 
-            label="Amount" 
-            value={amount} 
-            onChange={(e) => setAmount(e.target.value)} 
-            fullWidth 
-            type="number" 
-            inputProps={{ step: '0.01', min: '0' }}
-          />
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <TextField 
+              label="Amount" 
+              value={amount} 
+              onChange={(e) => setAmount(e.target.value)} 
+              sx={{ flex: 1 }}
+              type="number" 
+              inputProps={{ step: '0.01' }}
+            />
+
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={isIncome}
+                  onChange={(e) => setIsIncome(e.target.checked)}
+                  sx={{ '&.Mui-checked': { color: '#388e3c' } }}
+                />
+              }
+              label="Income"
+              sx={{ minWidth: 100 }}
+            />
+          </Box>
           
           <FormControl fullWidth>
             <InputLabel>Category</InputLabel>
@@ -159,7 +230,7 @@ export default function AddTransactionDialog({ open, onClose, defaultDate, onCre
               ))}
             </Select>
           </FormControl>
-          
+
           <TextField 
             label={isRecurring ? "Start Date" : "Date"} 
             value={date} 
@@ -272,6 +343,8 @@ export default function AddTransactionDialog({ open, onClose, defaultDate, onCre
               />
             </Box>
           )}
+          
+          
         </Box>
       </DialogContent>
               <DialogActions>

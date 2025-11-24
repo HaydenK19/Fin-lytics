@@ -11,6 +11,7 @@ import ListItemSecondaryAction from '@mui/material/ListItemSecondaryAction';
 import Divider from '@mui/material/Divider';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
+import HistoryIcon from '@mui/icons-material/History';
 
 const TransactionCard = () => {
     const [transactions, setTransactions] = useState([]);
@@ -18,6 +19,7 @@ const TransactionCard = () => {
     const [error, setError] = useState(null);
     const [categoryColors, setCategoryColors] = useState({});
     const navigate = useNavigate();
+    // no inline modal in the card; show simple Recurring tag only
 
     const fetchCategoryColors = async () => {
         try {
@@ -79,10 +81,6 @@ const TransactionCard = () => {
                     withCredentials: true,
                 });
 
-                // Get transactions from the last 30 days
-                const thirtyDaysAgo = new Date();
-                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
                 // Combine all transaction sources
                 const allTransactions = [
                     ...(response.data.db_transactions || []),
@@ -91,9 +89,45 @@ const TransactionCard = () => {
                     ...(response.data.recurring_transactions || [])
                 ];
 
-                const recentTransactions = allTransactions
-                    .filter(tx => new Date(tx.date) >= thirtyDaysAgo)
-                    .sort((a, b) => new Date(b.date) - new Date(a.date));
+                // keep full fetched list if needed by other components
+
+                // Show recent transactions (last 30 days) but only one instance per recurring series
+                const thirtyDaysAgo = new Date();
+                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+                const seenParents = new Set();
+                const recentTransactions = [];
+
+                // sort descending first
+                const sorted = allTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                for (const tx of sorted) {
+                    // skip transactions outside 30-day window
+                    if (!tx.date || new Date(tx.date) < thirtyDaysAgo) continue;
+
+                    // If this is a child occurrence of a recurring series, skip it (we'll show the parent only)
+                    if (tx.is_recurring && tx.parent_transaction_id) {
+                        // mark parent seen so we don't add another parent later
+                        seenParents.add(tx.parent_transaction_id);
+                        continue;
+                    }
+
+                    // If this is a recurring parent, ensure we only add it once
+                    if (tx.is_recurring && !tx.parent_transaction_id) {
+                        const numericId = tx.transaction_id && tx.transaction_id.toString().startsWith('user-') ? parseInt(tx.transaction_id.replace('user-', '')) : tx.transaction_id;
+                        if (seenParents.has(numericId)) {
+                            // parent already implied by child, still include parent once
+                            // but avoid duplicates
+                            if (recentTransactions.some(r => r.transaction_id === tx.transaction_id)) continue;
+                        }
+                        recentTransactions.push({ ...tx, isParent: true });
+                        seenParents.add(numericId);
+                        continue;
+                    }
+
+                    // Normal non-recurring transaction
+                    recentTransactions.push(tx);
+                }
 
                 setTransactions(recentTransactions);
                 setLoading(false);
@@ -111,8 +145,12 @@ const TransactionCard = () => {
             }
         };
 
+        // fetchTransactions end
         fetchTransactions();
     }, [navigate]);
+
+        // fetchTransactions end
+    
 
     return (
         <Box sx={{ p: 2 }} className="transaction-card">
@@ -184,9 +222,21 @@ const TransactionCard = () => {
                                             />
                                         </Box>
                                         <ListItemText
-                                            primary={tx.merchant_name || tx.category || 'Unknown'}
-                                            secondary={new Date(tx.date).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })}
-                                            primaryTypographyProps={{ sx: { fontWeight: 500 } }}
+                                            primary={
+                                                <Typography noWrap sx={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                    {tx.merchant_name || tx.category || 'Unknown'}
+                                                </Typography>
+                                            }
+                                            secondary={
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        {new Date(tx.date).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })}
+                                                    </Typography>
+                                                    {tx.isParent && (
+                                                        <HistoryIcon sx={{ color: 'action.active', ml: 0.5 }} fontSize="small" />
+                                                    )}
+                                                </Box>
+                                            }
                                         />
                                         <ListItemSecondaryAction>
                                             <Typography sx={{ color: tx.amount < 0 ? 'error.main' : 'success.main', fontWeight: 600 }}>
@@ -200,6 +250,7 @@ const TransactionCard = () => {
                     </List>
                 </Box>
             )}
+            {/* No inline occurrences modal in the card */}
         </Box>
     );
 };

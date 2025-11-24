@@ -1,1 +1,15 @@
 /* @import "tailwindcss"; */
+
+/* Ensure modal/backdrop covers the full viewport height for long pages */
+html, body, #root {
+	height: 100%;
+}
+
+.MuiBackdrop-root {
+	position: fixed !important;
+	top: 0 !important;
+	left: 0 !important;
+	right: 0 !important;
+	bottom: 0 !important;
+	background-color: rgba(0,0,0,0.18) !important;
+}

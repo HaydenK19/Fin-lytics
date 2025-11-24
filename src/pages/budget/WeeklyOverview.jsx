@@ -5,7 +5,6 @@ import AddTransactionDialog from './popups/add-transaction';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 
-// Format date to YYYY-MM-DD in local timezone (fixes off-by-one error)
 const formatISO = (d) => {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -13,7 +12,6 @@ const formatISO = (d) => {
   return `${year}-${month}-${day}`;
 };
 
-// Parse date string as local timezone to avoid UTC conversion issues
 const parseLocalDate = (dateString) => {
   if (!dateString) return null;
   const [year, month, day] = dateString.split('T')[0].split('-');
@@ -58,6 +56,7 @@ export default function FinancialCalendar() {
   const [openDay, setOpenDay] = useState(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [upcoming, setUpcoming] = useState([]);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [cache, setCache] = useState({});
   const [selectedWeek, setSelectedWeek] = useState(new Date());
   const [viewMode, setViewMode] = useState('week');
@@ -526,8 +525,9 @@ export default function FinancialCalendar() {
             <Typography variant="body2">No upcoming transactions</Typography>
           </Box>
         ) : (
-          <Grid container spacing={1}>
-            {upcoming.slice(0, 6).map(tx => (
+          <Box sx={{ maxHeight: 220, overflowY: 'auto', pr: 1 }}>
+            <Grid container spacing={1}>
+            {upcoming.map(tx => (
               <Grid item xs={12} sm={6} md={4} key={tx.transaction_id}>
                 <Paper 
                   elevation={0} 
@@ -538,7 +538,7 @@ export default function FinancialCalendar() {
                     cursor: 'pointer',
                     '&:hover': { backgroundColor: 'action.hover' }
                   }}
-                  onClick={() => setOpenDay(tx.date)}
+                  onClick={() => { setSelectedTransaction(tx); /* openDay still set for date context if needed */ setOpenDay(tx.date); }}
                 >
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', minHeight: '44px' }}>
                     <Box sx={{ flex: 1, mr: 1, minWidth: 0 }}>
@@ -593,55 +593,85 @@ export default function FinancialCalendar() {
                       </Typography>
                     </Box>
                   </Box>
-                </Paper>
+                  </Paper>
               </Grid>
             ))}
-          </Grid>
+            </Grid>
+          </Box>
         )}
       </Paper>
 
-      <Drawer anchor="right" open={!!openDay} onClose={() => setOpenDay(null)}>
+      <Drawer anchor="right" open={!!openDay || !!selectedTransaction} onClose={() => { setOpenDay(null); setSelectedTransaction(null); }}>
         <Box sx={{ width: 420, p:2 }}>
-          <Box display="flex" justifyContent="space-between" alignItems="center">
-            <Typography variant="h6">{openDay}</Typography>
-            <Button size="small" onClick={() => setIsAddOpen(true)}>Add</Button>
-          </Box>
-          <Divider sx={{ my:1 }} />
-          <List>
-            {(eventsByDate[openDay] || []).map(tx => (
-              <React.Fragment key={tx.transaction_id}>
-                <ListItem sx={{ 
-                  backgroundColor: getCategoryColor(tx.category) + '10',
-                  borderLeft: `4px solid ${getCategoryColor(tx.category)}`,
-                  mb: 0.5,
-                  borderRadius: 1
-                }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 2 }}>
-                    <Box 
-                      sx={{ 
-                        width: 12, 
-                        height: 12, 
-                        borderRadius: '50%', 
-                        backgroundColor: getCategoryColor(tx.category)
-                      }} 
-                    />
-                    <ListItemText 
-                      primary={tx.merchant_name || tx.category} 
-                      secondary={parseLocalDate(tx.date)?.toLocaleString() || tx.date} 
-                    />
-                  </Box>
-                  <Box sx={{ ml:2, color: tx.amount < 0 ? 'error.main' : 'success.main', fontWeight: 600 }}>${Math.abs(tx.amount).toFixed(2)}</Box>
-                </ListItem>
-                <Divider component="li" />
-              </React.Fragment>
-            ))}
-            {(!eventsByDate[openDay] || eventsByDate[openDay].length === 0) && (
-              <ListItem>
-                <ListItemText primary="No transactions" />
-              </ListItem>
-            )}
-          </List>
-
+          {selectedTransaction ? (
+            <Box>
+              <Box display="flex" justifyContent="space-between" alignItems="center">
+                <Typography variant="h6">Transaction Details</Typography>
+                <Button size="small" onClick={() => setIsAddOpen(true)}>Add</Button>
+              </Box>
+              <Divider sx={{ my:1 }} />
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{selectedTransaction.merchant_name || 'Unknown'}</Typography>
+                  <Typography variant="caption" color="text.secondary">{new Date(selectedTransaction.date).toLocaleString()}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: selectedTransaction.amount < 0 ? 'error.main' : 'success.main' }}>
+                    {`$${Math.abs(selectedTransaction.amount).toFixed(2)}`}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">{selectedTransaction.amount < 0 ? 'expense' : 'income'}</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                  <Chip label={selectedTransaction.category || 'other'} size="small" variant="outlined" />
+                  {selectedTransaction.is_recurring && <Chip label="Recurring" size="small" variant="outlined" sx={{ color: 'info.main', borderColor: 'info.main' }} />}
+                  <Chip label={selectedTransaction.source || 'unknown'} size="small" variant="outlined" />
+                </Box>
+                {/* Details removed per UI update */}
+              </Box>
+            </Box>
+          ) : (
+            <Box>
+              <Box display="flex" justifyContent="space-between" alignItems="center">
+                <Typography variant="h6">{openDay}</Typography>
+                <Button size="small" onClick={() => setIsAddOpen(true)}>Add</Button>
+              </Box>
+              <Divider sx={{ my:1 }} />
+              <List>
+                {(eventsByDate[openDay] || []).map(tx => (
+                  <React.Fragment key={tx.transaction_id}>
+                    <ListItem sx={{ 
+                      backgroundColor: getCategoryColor(tx.category) + '10',
+                      borderLeft: `4px solid ${getCategoryColor(tx.category)}`,
+                      mb: 0.5,
+                      borderRadius: 1
+                    }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 2 }}>
+                        <Box 
+                          sx={{ 
+                            width: 12, 
+                            height: 12, 
+                            borderRadius: '50%', 
+                            backgroundColor: getCategoryColor(tx.category)
+                          }} 
+                        />
+                        <ListItemText 
+                          primary={tx.merchant_name || tx.category} 
+                          secondary={parseLocalDate(tx.date)?.toLocaleString() || tx.date} 
+                        />
+                      </Box>
+                      <Box sx={{ ml:2, color: tx.amount < 0 ? 'error.main' : 'success.main', fontWeight: 600 }}>{`$${Math.abs(tx.amount).toFixed(2)}`}</Box>
+                    </ListItem>
+                    <Divider component="li" />
+                  </React.Fragment>
+                ))}
+                {(!eventsByDate[openDay] || eventsByDate[openDay].length === 0) && (
+                  <ListItem>
+                    <ListItemText primary="No transactions" />
+                  </ListItem>
+                )}
+              </List>
+            </Box>
+          )}
         </Box>
       </Drawer>
 
