@@ -14,7 +14,7 @@ import {
   Alert,
 } from '@mui/material';
 
-export default function Holdings() {
+export default function Holdings({ portfolioId = null }) {
   const [holdings, setHoldings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -23,7 +23,8 @@ export default function Holdings() {
     const fetchHoldings = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get('http://localhost:8000/investments/holdings', {
+        const url = portfolioId ? `http://localhost:8000/investments/holdings?portfolio_id=${encodeURIComponent(portfolioId)}` : 'http://localhost:8000/investments/holdings';
+        const res = await axios.get(url, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setHoldings(res.data.holdings || []);
@@ -35,7 +36,7 @@ export default function Holdings() {
       }
     };
     fetchHoldings();
-  }, []);
+  }, [portfolioId]);
 
   if (loading)
     return (

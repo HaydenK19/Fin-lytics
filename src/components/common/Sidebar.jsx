@@ -104,7 +104,6 @@ const Sidebar = ({ setIsAuthenticated }) => {
           },
         }}
       >
-        {/* Spacer for Navbar */}
         <Toolbar />
         <Box sx={{ overflow: "hidden" }}>
           <List>

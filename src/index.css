@@ -1,1 +1,27 @@
-/* @import "tailwindcss"; */
+/* Global backdrop and page container styles */
+html, body, #root {
+	height: 100%;
+}
+
+body {
+	margin: 0;
+	padding: 0;
+	background-color: #f6f7fa; /* subtle grey backdrop for all pages */
+	background-attachment: fixed; /* avoid repeating on long pages */
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+/* A reusable page container to center content and provide white cards */
+.app-page {
+	max-width: 1200px;
+	margin: 16px auto;
+	padding: 12px;
+	box-sizing: border-box;
+}
+
+/* Keep tables and large cards responsive */
+.app-page .responsive-card {
+	width: 100%;
+	overflow-x: auto;
+}
