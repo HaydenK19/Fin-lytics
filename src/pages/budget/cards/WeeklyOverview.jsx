@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 // Removed duplicate Dialog imports; use those from main MUI import
 import axios from 'axios';
-import { Box, Grid, Paper, Typography, IconButton, Button, List, ListItem, ListItemText, Divider, Drawer, ToggleButton, ToggleButtonGroup, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Select, MenuItem, FormControl, InputLabel, Chip, CircularProgress } from '@mui/material';
+import { Box, Grid, Paper, Typography, IconButton, Button, List, ListItem, ListItemText, Divider, Drawer, ToggleButton, ToggleButtonGroup, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Select, MenuItem, FormControl, InputLabel, Chip, CircularProgress, Snackbar, Alert } from '@mui/material';
 import AddTransactionDialog from '../popups/add-transaction';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
@@ -50,11 +50,13 @@ function endOfMonth(date) {
 }
 
 export default function FinancialCalendar() {
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [mode, setMode] = useState('week'); // or 'month'
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [monthBase, setMonthBase] = useState(() => startOfMonth(new Date()));
   const [eventsByDate, setEventsByDate] = useState({});
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false); // overlay state
   const [openDay, setOpenDay] = useState(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editData, setEditData] = useState(null);
@@ -83,7 +85,9 @@ export default function FinancialCalendar() {
       
       const colorMap = {};
       response.data.forEach(category => {
-        colorMap[category.name] = category.color;
+        if (category.name) {
+          colorMap[category.name.trim().toLowerCase()] = category.color;
+        }
       });
       console.log('Calendar: Fetched category colors:', colorMap);
       setCategoryColors(colorMap);
@@ -95,22 +99,23 @@ export default function FinancialCalendar() {
   // function to get category color
   const getCategoryColor = (category) => {
     if (!category) return '#9E9E9E';
-    
-    let color = categoryColors[category];
-    
+    const norm = category.trim().toLowerCase();
+    let color = categoryColors[norm];
     if (!color) {
+      // Try to find a close match
       const matchingKey = Object.keys(categoryColors).find(
-        key => key.toLowerCase() === category.toLowerCase()
+        key => key === norm
       );
       if (matchingKey) {
         color = categoryColors[matchingKey];
       }
     }
-    
-    // grey if still no color found
-    color = color || '#9E9E9E';
-    console.log('Calendar: Getting color for category:', category, '=> color:', color);
-    return color;
+    if (!color) {
+      console.warn('Category color not found for:', category, 'Normalized:', norm, 'Available:', Object.keys(categoryColors));
+    } else {
+      console.log('Category color found for:', category, 'Normalized:', norm, '=>', color);
+    }
+    return color || '#9E9E9E';
   };
 
   // fetch for a given range
@@ -153,12 +158,35 @@ export default function FinancialCalendar() {
     }
   };
 
-  const refreshCurrentRange = () => {
+  // Overlayed refresh for both calendar and upcoming
+  const refreshCurrentRange = async () => {
+    setRefreshing(true);
     if (mode === 'week') {
-      fetchRange(weekStart, addDays(weekStart,6), true); // force refetch
+      await fetchRange(weekStart, addDays(weekStart,6), true);
     } else {
-      fetchRange(startOfMonth(monthBase), endOfMonth(monthBase), true);
+      await fetchRange(startOfMonth(monthBase), endOfMonth(monthBase), true);
     }
+    // Also refresh upcoming
+    const today = new Date();
+    const in30 = addDays(today, 30);
+    try {
+      const token = localStorage.getItem('token');
+      const resp = await axios.get(`http://localhost:8000/user_transactions/?start_date=${formatISO(today)}&end_date=${formatISO(in30)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        withCredentials: true,
+      });
+      const all = [
+        ...(resp.data.db_transactions || []),
+        ...(resp.data.plaid_transactions || []),
+        ...(resp.data.user_transactions || []),
+        ...(resp.data.recurring_transactions || [])
+      ];
+      const filtered = all.filter(tx => new Date(tx.date) >= today).sort((a,b) => new Date(a.date) - new Date(b.date));
+      setUpcoming(filtered.slice(0,10));
+    } catch (e) {
+      setUpcoming([]);
+    }
+    setRefreshing(false);
   };
 
   // fetch category colors on mount
@@ -207,6 +235,12 @@ export default function FinancialCalendar() {
       }
     })();
   }, []);
+
+  // Debug: log all categories in current eventsByDate
+  useEffect(() => {
+    const allCategories = Object.values(eventsByDate).flat().map(tx => tx.category);
+    console.log('All transaction categories in view:', allCategories);
+  }, [eventsByDate]);
 
   const days = useMemo(() => {
     if (mode === 'week') return Array.from({length:7}).map((_,i) => addDays(weekStart, i));
@@ -268,19 +302,24 @@ export default function FinancialCalendar() {
             <ToggleButton value="week">Week</ToggleButton>
             <ToggleButton value="month">Month</ToggleButton>
           </ToggleButtonGroup>
-          <Button size="small" onClick={() => { setWeekStart(startOfWeek(new Date())); setMonthBase(startOfMonth(new Date())); }}>Today</Button>
+          <Button size="small" variant="outlined" sx={{ marginRight: 2, padding: 0.6 }} onClick={() => { setWeekStart(startOfWeek(new Date())); setMonthBase(startOfMonth(new Date())); }}>Today</Button>
         </Box>
       </Box>
 
       {mode === 'week' ? (
-        <Box sx={{ width: '100%', boxSizing: 'border-box', overflowX: { xs: 'auto', sm: 'hidden' }, p: 1 }}>
+        <Box sx={{ width: '100%', boxSizing: 'border-box', overflowX: { xs: 'auto', sm: 'hidden' }, p: 1, position: 'relative' }}>
+          {refreshing && (
+            <Box sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', bgcolor: 'rgba(255,255,255,0.7)', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'all' }}>
+              <CircularProgress />
+            </Box>
+          )}
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(7, minmax(160px, 1fr))', sm: 'repeat(7, 1fr)' }, gap: { xs: 0.5, sm: 0.8 }, alignItems: 'start', gridAutoRows: 'minmax(120px, auto)' }}>
             {days.map(day => {
             const key = formatISO(day);
             const list = eventsByDate[key] || [];
             const net = dayNet(day);
             const isToday = formatISO(new Date()) === key;
-            const bg = isToday ? 'rgba(25, 118, 210, 0.1)' : (net < 0 ? 'rgba(244, 67, 54, 0.06)' : (net > 0 ? 'rgba(76,175,80,0.06)' : undefined));
+            const bg = isToday ? 'rgba(25, 118, 210, 0.1)' : undefined;
             return (
               <Paper key={key} sx={{ 
                 p: { xs: 0.4, sm: 0.75 }, 
@@ -525,7 +564,6 @@ export default function FinancialCalendar() {
             + Add
           </Button>
         </Box>
-        
         {upcoming.length === 0 ? (
           <Box sx={{ textAlign: 'center', py: 2, color: 'text.secondary' }}>
             <Typography variant="body2">No upcoming transactions</Typography>
@@ -542,19 +580,22 @@ export default function FinancialCalendar() {
                     border: 1, 
                     borderColor: 'divider',
                     cursor: 'pointer',
-                    '&:hover': { backgroundColor: 'action.hover' }
+                    '&:hover': { backgroundColor: 'action.hover' },
+                    mb: 1
                   }}
-                  onClick={() => { setSelectedTransaction(tx); /* openDay still set for date context if needed */ setOpenDay(tx.date); }}
+                  onClick={() => { setSelectedTransaction(tx); setOpenDay(tx.date); }}
                 >
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', minHeight: '44px' }}>
                     <Box sx={{ flex: 1, mr: 1, minWidth: 0 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
                         <Box 
                           sx={{ 
-                            width: 8, 
-                            height: 8, 
+                            width: 10, 
+                            height: 10, 
                             borderRadius: '50%', 
                             backgroundColor: getCategoryColor(tx.category),
+                            border: '1.5px solid #fff',
+                            boxShadow: '0 0 0 1.5px ' + getCategoryColor(tx.category),
                             flexShrink: 0
                           }} 
                         />
@@ -578,6 +619,7 @@ export default function FinancialCalendar() {
                             sx={{ height: 16, fontSize: '0.65rem', flexShrink: 0, ml: 0.5 }}
                           />
                         )}
+                        {/* Category chip removed for upcoming transactions */}
                       </Box>
                       <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
                         {new Date(tx.date).toLocaleDateString()}
@@ -599,16 +641,17 @@ export default function FinancialCalendar() {
                       </Typography>
                     </Box>
                   </Box>
-                  </Paper>
+                </Paper>
               </Grid>
             ))}
             </Grid>
           </Box>
         )}
+        {/* Only one refresh overlay should exist, so this is removed. */}
       </Paper>
 
-      <Drawer anchor="right" open={!!openDay || !!selectedTransaction} onClose={() => { setOpenDay(null); setSelectedTransaction(null); }}>
-        <Box sx={{ width: 420, p:2 }}>
+      <Drawer anchor="right" open={!!openDay || !!selectedTransaction} onClose={() => { setOpenDay(null); setSelectedTransaction(null); setEditData(null); setIsAddOpen(false); }}>
+        <Box sx={{ width: 420, p:2, position: 'relative' }}>
           {selectedTransaction ? (
             <Box>
               <Box display="flex" justifyContent="space-between" alignItems="center">
@@ -628,7 +671,14 @@ export default function FinancialCalendar() {
                   <Typography variant="caption" color="text.secondary">{selectedTransaction.amount < 0 ? 'expense' : 'income'}</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                  <Chip label={selectedTransaction.category || 'other'} size="small" variant="outlined" />
+                  {/* Category chip with color */}
+                  {selectedTransaction.category && (
+                    <Chip 
+                      label={getCategoryColor(selectedTransaction.category) === '#9E9E9E' ? `${selectedTransaction.category} (unmapped)` : selectedTransaction.category}
+                      size="small"
+                      sx={{ backgroundColor: getCategoryColor(selectedTransaction.category), color: '#fff', textTransform: 'capitalize', border: getCategoryColor(selectedTransaction.category) === '#9E9E9E' ? '1.5px dashed #888' : undefined }}
+                    />
+                  )}
                   {selectedTransaction.is_recurring && <Chip label="recurring" size="small" variant="outlined" sx={{ color: 'info.main', borderColor: 'info.main' }} />}
                   <Chip label={selectedTransaction.source || 'unknown'} size="small" variant="outlined" />
                 </Box>
@@ -642,6 +692,10 @@ export default function FinancialCalendar() {
                 <Button size="small" onClick={() => setIsAddOpen(true)}>Add</Button>
               </Box>
               <Divider sx={{ my:1 }} />
+              {/* Edit hint */}
+              <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                Click a transaction below to edit it.
+              </Typography>
               <List>
                 {(eventsByDate[openDay] || []).map(tx => (
                   <React.Fragment key={tx.transaction_id}>
@@ -650,7 +704,8 @@ export default function FinancialCalendar() {
                       borderLeft: `4px solid ${getCategoryColor(tx.category)}`,
                       mb: 0.5,
                       borderRadius: 1,
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      alignItems: 'center'
                     }}
                     onClick={() => { setEditData(tx); setIsAddOpen(true); }}
                     >
@@ -664,9 +719,13 @@ export default function FinancialCalendar() {
                           }} 
                         />
                         <ListItemText 
-                          primary={tx.merchant_name || tx.category} 
+                          primary={tx.merchant_name || tx.category || ''} 
                           secondary={parseLocalDate(tx.date)?.toLocaleString() || tx.date} 
                         />
+                        {/* Category chip with color */}
+                        {tx.category && (
+                          <Chip label={tx.category} size="small" sx={{ backgroundColor: getCategoryColor(tx.category), color: '#fff', ml: 1 }} />
+                        )}
                       </Box>
                       <Box sx={{ ml:2, color: tx.amount < 0 ? 'error.main' : 'success.main', fontWeight: 600 }}>{`$${Math.abs(tx.amount).toFixed(2)}`}</Box>
                     </ListItem>
@@ -701,7 +760,12 @@ export default function FinancialCalendar() {
           setOpenDay(tx.date);
         }}
         onSubmit={async (payload) => {
-          setConfirmDialog({ open: true, action: editData ? 'edit' : 'add', tx: { ...payload, transaction_id: editData?.transaction_id }, date: payload.date });
+          // If editing, merge original transaction with updated fields to avoid missing required fields
+          let mergedPayload = payload;
+          if (editData) {
+            mergedPayload = { ...editData, ...payload, transaction_id: editData.transaction_id };
+          }
+          setConfirmDialog({ open: true, action: editData ? 'edit' : 'add', tx: mergedPayload, date: payload.date });
         }}
         onDelete={editData ? () => setConfirmDialog({ open: true, action: 'remove', tx: editData, date: editData.date }) : undefined}
       />
@@ -738,7 +802,16 @@ export default function FinancialCalendar() {
               setEditData(null);
             } else if (confirmDialog.action === 'edit') {
               const token = localStorage.getItem('token');
-              await axios.put(`http://localhost:8000/user_transactions/${confirmDialog.tx.transaction_id}`, confirmDialog.tx, {
+              // Log and filter payload before sending
+              // Remove 'id' and null fields from payload
+              const filteredPayload = Object.fromEntries(
+                Object.entries(confirmDialog.tx)
+                  .filter(([k, v]) => k !== 'id' && v !== undefined && v !== null && v !== '')
+              );
+              console.log('PUT payload:', filteredPayload);
+              // Use numeric id for URL if present, else fallback to transaction_id
+              const urlId = confirmDialog.tx.id !== undefined ? confirmDialog.tx.id : confirmDialog.tx.transaction_id;
+              await axios.put(`http://localhost:8000/user_transactions/${urlId}`, filteredPayload, {
                 headers: { Authorization: `Bearer ${token}` },
                 withCredentials: true,
               });
@@ -767,15 +840,20 @@ export default function FinancialCalendar() {
               refreshCurrentRange(); // Always update weekly view after delete, force refetch
               setOpenDay(null);
               setEditData(null);
-              // Force modal close after deletion
               setIsAddOpen(false);
               setSelectedTransaction(null);
+              setSnackbar({ open: true, message: 'Transaction deleted. Please close this dialog and refresh the calendar.', severity: 'success' });
             }
             setActionLoading(false);
             setConfirmDialog({ open: false, action: null, tx: null, date: null });
           }}>Confirm</Button>
         </DialogActions>
       </Dialog>
+    <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({ ...snackbar, open: false })} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+      <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
+        {snackbar.message}
+      </Alert>
+    </Snackbar>
     </Box>
   );
 }

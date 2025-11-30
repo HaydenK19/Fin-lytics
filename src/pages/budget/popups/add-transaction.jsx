@@ -1,10 +1,52 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Box, FormControl, InputLabel, Select, MenuItem, IconButton, FormControlLabel, Checkbox, Typography } from '@mui/material';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Box, FormControl, InputLabel, Select, MenuItem, IconButton, FormControlLabel, Checkbox, Typography, Chip, CircularProgress } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
-
 export default function AddTransactionDialog({ open, onClose, defaultDate, onCreated, initialData = null, isEdit = false, onSubmit = null }) {
+  // Category color state and fetch logic (copied from WeeklyOverview.jsx)
+  const [categoryColors, setCategoryColors] = useState({});
+  const [colorLoading, setColorLoading] = useState(false);
+
+  const fetchCategoryColors = async () => {
+    try {
+      setColorLoading(true);
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const userId = payload.id;
+      const response = await axios.get(`http://localhost:8000/user_categories/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        withCredentials: true,
+      });
+      const colorMap = {};
+      response.data.forEach(category => {
+        if (category.name) {
+          colorMap[category.name.trim().toLowerCase()] = category.color;
+        }
+      });
+      setCategoryColors(colorMap);
+    } catch (error) {
+      console.error('Error fetching category colors:', error);
+    } finally {
+      setColorLoading(false);
+    }
+  };
+
+  const getCategoryColor = (category) => {
+    if (!category) return '#9E9E9E';
+    const norm = category.trim().toLowerCase();
+    let color = categoryColors[norm];
+    if (!color) {
+      const matchingKey = Object.keys(categoryColors).find(key => key === norm);
+      if (matchingKey) color = categoryColors[matchingKey];
+    }
+    return color || '#9E9E9E';
+  };
+
+  useEffect(() => {
+    fetchCategoryColors();
+  }, []);
   const [merchant, setMerchant] = useState('');
   const [transactionId, setTransactionId] = useState(null);
   const [amount, setAmount] = useState('');

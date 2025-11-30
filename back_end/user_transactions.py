@@ -357,7 +357,7 @@ async def get_user_transactions(
                     "account_id": "manual",
                     "amount": t.amount,
                     "currency": "USD",
-                    "category": getattr(t, 'category', None), 
+                    "category": category_name, 
                     "merchant_name": t.description,
                     "date": t.date.isoformat() if t.date else None,
                     "parent_transaction_id": getattr(t, 'parent_transaction_id', None),

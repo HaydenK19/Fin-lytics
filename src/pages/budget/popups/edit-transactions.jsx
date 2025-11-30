@@ -1,5 +1,5 @@
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import CircularProgress from '@mui/material/CircularProgress';
 import {
     Dialog,
@@ -30,10 +30,52 @@ import HistoryIcon from '@mui/icons-material/History';
 import SaveIcon from '@mui/icons-material/Save';
 import CancelIcon from '@mui/icons-material/Cancel';
 import DeleteIcon from '@mui/icons-material/Delete';
-import axios from "axios";
 import AddTransactionDialog from "./add-transaction";
 
 const EditTransactions = ({ onClose }) => {
+    // Category color state and fetch logic (copied from WeeklyOverview.jsx)
+    const [categoryColors, setCategoryColors] = useState({});
+    const [colorLoading, setColorLoading] = useState(false);
+
+    const fetchCategoryColors = async () => {
+        try {
+            setColorLoading(true);
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            const userId = payload.id;
+            const response = await axios.get(`http://localhost:8000/user_categories/${userId}`, {
+                headers: { Authorization: `Bearer ${token}` },
+                withCredentials: true,
+            });
+            const colorMap = {};
+            response.data.forEach(category => {
+                if (category.name) {
+                    colorMap[category.name.trim().toLowerCase()] = category.color;
+                }
+            });
+            setCategoryColors(colorMap);
+        } catch (error) {
+            console.error('Error fetching category colors:', error);
+        } finally {
+            setColorLoading(false);
+        }
+    };
+
+    const getCategoryColor = (category) => {
+        if (!category) return '#9E9E9E';
+        const norm = category.trim().toLowerCase();
+        let color = categoryColors[norm];
+        if (!color) {
+            const matchingKey = Object.keys(categoryColors).find(key => key === norm);
+            if (matchingKey) color = categoryColors[matchingKey];
+        }
+        return color || '#9E9E9E';
+    };
+
+    useEffect(() => {
+        fetchCategoryColors();
+    }, []);
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(0);
@@ -494,12 +536,29 @@ const EditTransactions = ({ onClose }) => {
                                                         <Typography variant="body1" sx={{ fontWeight: 500 }}>
                                                             {transaction.merchant_name || 'Unknown Merchant'}
                                                         </Typography>
-                                                        <Chip 
-                                                            label={transaction.category || 'other'} 
-                                                            size="small" 
-                                                            variant="outlined"
-                                                            sx={{ fontSize: '0.75rem' }}
-                                                        />
+                                                        {/* Category chip: use color for user transactions, outlined for others */}
+                                                        {transaction.source === 'user' ? (
+                                                            colorLoading ? (
+                                                                <Chip 
+                                                                    label={transaction.category || 'other'}
+                                                                    size="small"
+                                                                    sx={{ fontSize: '0.75rem', backgroundColor: '#eee' }}
+                                                                />
+                                                            ) : (
+                                                                <Chip 
+                                                                    label={transaction.category || 'other'}
+                                                                    size="small"
+                                                                    sx={{ fontSize: '0.75rem', backgroundColor: getCategoryColor(transaction.category), color: '#fff', fontWeight: 600 }}
+                                                                />
+                                                            )
+                                                        ) : (
+                                                            <Chip 
+                                                                label={transaction.category || 'other'} 
+                                                                size="small" 
+                                                                variant="outlined"
+                                                                sx={{ fontSize: '0.75rem' }}
+                                                            />
+                                                        )}
                                                         <Chip 
                                                             label={transaction.source || 'unknown'} 
                                                             size="small" 

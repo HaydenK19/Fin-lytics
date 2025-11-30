@@ -17,14 +17,14 @@ def get_category_color(category_name):
     
     category_colors = {
         # Food related
-        'food': '#FF6B6B',
-        'fooddrink': '#FF6B6B',
-        'foodanddrink': '#FF6B6B',
+        'food': "#D37BFF",
+        'fooddrink': '#D37BFF',
+        'foodanddrink': '#D37BFF',
         
         # Transportation
-        'transportation': '#4ECDC4',
-        'transport': '#4ECDC4',
-        'travel': '#F7DC6F',
+        'transportation': "#3E58C9",
+        'transport': '#3E58C9',
+        'travel': '#3E58C9',
         
         # Utilities & Services
         'utilities': '#45B7D1',
@@ -46,7 +46,7 @@ def get_category_color(category_name):
         'personalcare': '#DDA0DD',
         
         # Education
-        'education': '#98D8C8',
+        'education': "#E4B481",
         
         # Financial
         'transfer': '#A0A0A0',
