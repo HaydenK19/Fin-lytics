@@ -66,7 +66,6 @@ export default function AddTransactionDialog({ open, onClose, defaultDate, onCre
       // calculate end date if not provided (default to 1 year from start date)
       const calculatedEndDate = endDate || new Date(new Date(date).getTime() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0,10);
       
-      // Normalize amount: default to expense (negative) unless marked as income
       let amt = parseFloat(amount);
       if (isNaN(amt)) amt = 0;
       if (!isIncome && amt > 0) amt = -amt;
@@ -92,7 +91,6 @@ export default function AddTransactionDialog({ open, onClose, defaultDate, onCre
         })
       };
       if (onSubmit) {
-        // Delegate submit handling (edit or custom) to caller
         await onSubmit(payload);
       } else {
         const resp = await axios.post('http://localhost:8000/user_transactions/', payload, {
@@ -104,7 +102,6 @@ export default function AddTransactionDialog({ open, onClose, defaultDate, onCre
       setLoading(false);
       onClose();
       
-      // Reset form
       setMerchant('');
       setTransactionId(null);
       setAmount('');
@@ -215,7 +212,7 @@ export default function AddTransactionDialog({ open, onClose, defaultDate, onCre
               sx={{ minWidth: 100 }}
             />
           </Box>
-          
+
           <FormControl fullWidth>
             <InputLabel>Category</InputLabel>
             <Select
@@ -230,6 +227,8 @@ export default function AddTransactionDialog({ open, onClose, defaultDate, onCre
               ))}
             </Select>
           </FormControl>
+          
+         
 
           <TextField 
             label={isRecurring ? "Start Date" : "Date"} 
@@ -240,7 +239,6 @@ export default function AddTransactionDialog({ open, onClose, defaultDate, onCre
             InputLabelProps={{ shrink: true }} 
           />
           
-          {/* Recurring Transaction Checkbox */}
           <FormControlLabel
             control={
               <Checkbox 

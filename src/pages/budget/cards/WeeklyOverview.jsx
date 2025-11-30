@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
+// Removed duplicate Dialog imports; use those from main MUI import
 import axios from 'axios';
-import { Box, Grid, Paper, Typography, IconButton, Button, List, ListItem, ListItemText, Divider, Drawer, ToggleButton, ToggleButtonGroup, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Select, MenuItem, FormControl, InputLabel, Chip } from '@mui/material';
-import AddTransactionDialog from './popups/add-transaction';
+import { Box, Grid, Paper, Typography, IconButton, Button, List, ListItem, ListItemText, Divider, Drawer, ToggleButton, ToggleButtonGroup, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Select, MenuItem, FormControl, InputLabel, Chip, CircularProgress } from '@mui/material';
+import AddTransactionDialog from '../popups/add-transaction';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
+import RefreshIcon from '@mui/icons-material/Refresh';
 
 const formatISO = (d) => {
   const year = d.getFullYear();
@@ -55,12 +57,15 @@ export default function FinancialCalendar() {
   const [loading, setLoading] = useState(false);
   const [openDay, setOpenDay] = useState(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [editData, setEditData] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, action: null, tx: null, date: null });
   const [upcoming, setUpcoming] = useState([]);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [cache, setCache] = useState({});
   const [selectedWeek, setSelectedWeek] = useState(new Date());
   const [viewMode, setViewMode] = useState('week');
   const [categoryColors, setCategoryColors] = useState({});
+  const [actionLoading, setActionLoading] = useState(false);
 
   // get user categories with colors
   const fetchCategoryColors = async () => {
@@ -91,10 +96,8 @@ export default function FinancialCalendar() {
   const getCategoryColor = (category) => {
     if (!category) return '#9E9E9E';
     
-    // First try direct lookup
     let color = categoryColors[category];
     
-    // If not found, try case-insensitive lookup
     if (!color) {
       const matchingKey = Object.keys(categoryColors).find(
         key => key.toLowerCase() === category.toLowerCase()
@@ -110,12 +113,11 @@ export default function FinancialCalendar() {
     return color;
   };
 
-
-
   // fetch for a given range
-  const fetchRange = async (start, end) => {
+  // If force=true, always refetch from backend and update cache
+  const fetchRange = async (start, end, force = false) => {
     const key = `${formatISO(start)}_${formatISO(end)}`;
-    if (cache[key]) {
+    if (!force && cache[key]) {
       setEventsByDate(cache[key]);
       // still trigger a background refresh
     } else {
@@ -153,9 +155,9 @@ export default function FinancialCalendar() {
 
   const refreshCurrentRange = () => {
     if (mode === 'week') {
-      fetchRange(weekStart, addDays(weekStart,6));
+      fetchRange(weekStart, addDays(weekStart,6), true); // force refetch
     } else {
-      fetchRange(startOfMonth(monthBase), endOfMonth(monthBase));
+      fetchRange(startOfMonth(monthBase), endOfMonth(monthBase), true);
     }
   };
 
@@ -252,7 +254,11 @@ export default function FinancialCalendar() {
             else setMonthBase(prev => { const d = new Date(prev); d.setMonth(d.getMonth() + 1); return d; });
           }}><ArrowForwardIosIcon fontSize="small"/></IconButton>
         </Box>
+        
         <Box display="flex" alignItems="center" gap={1}>
+          <IconButton onClick={refreshCurrentRange} aria-label="refresh" sx={{ ml: 2 }}>
+          <RefreshIcon />
+        </IconButton>
           <ToggleButtonGroup
             value={mode}
             exclusive
@@ -565,7 +571,7 @@ export default function FinancialCalendar() {
                         </Typography>
                         {tx.is_recurring && (
                           <Chip 
-                            label="Recurring" 
+                            label="recurring" 
                             size="small" 
                             color="secondary" 
                             variant="outlined"
@@ -623,7 +629,7 @@ export default function FinancialCalendar() {
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                   <Chip label={selectedTransaction.category || 'other'} size="small" variant="outlined" />
-                  {selectedTransaction.is_recurring && <Chip label="Recurring" size="small" variant="outlined" sx={{ color: 'info.main', borderColor: 'info.main' }} />}
+                  {selectedTransaction.is_recurring && <Chip label="recurring" size="small" variant="outlined" sx={{ color: 'info.main', borderColor: 'info.main' }} />}
                   <Chip label={selectedTransaction.source || 'unknown'} size="small" variant="outlined" />
                 </Box>
                 {/* Details removed per UI update */}
@@ -643,8 +649,11 @@ export default function FinancialCalendar() {
                       backgroundColor: getCategoryColor(tx.category) + '10',
                       borderLeft: `4px solid ${getCategoryColor(tx.category)}`,
                       mb: 0.5,
-                      borderRadius: 1
-                    }}>
+                      borderRadius: 1,
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => { setEditData(tx); setIsAddOpen(true); }}
+                    >
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 2 }}>
                         <Box 
                           sx={{ 
@@ -675,24 +684,98 @@ export default function FinancialCalendar() {
         </Box>
       </Drawer>
 
-      {/* Add Transaction Dialog - moved outside drawer */}
       <AddTransactionDialog
         open={isAddOpen}
-        onClose={() => setIsAddOpen(false)}
-        defaultDate={openDay}
+        onClose={() => { setIsAddOpen(false); setEditData(null); }}
+        defaultDate={openDay ? openDay : new Date().toISOString().slice(0,10)}
+        initialData={editData}
+        isEdit={!!editData}
         onCreated={(tx) => {
-          // Immediately update local eventsByDate for instant UI feedback
           setEventsByDate(prev => {
-            const copy = { ...prev };
             const key = tx.date;
+            const copy = { ...prev };
             copy[key] = [ ...(copy[key] || []), tx ];
             return copy;
           });
-          // refresh in background and refresh upcoming
           refreshCurrentRange();
           setOpenDay(tx.date);
         }}
+        onSubmit={async (payload) => {
+          setConfirmDialog({ open: true, action: editData ? 'edit' : 'add', tx: { ...payload, transaction_id: editData?.transaction_id }, date: payload.date });
+        }}
+        onDelete={editData ? () => setConfirmDialog({ open: true, action: 'remove', tx: editData, date: editData.date }) : undefined}
       />
+
+      <Dialog open={confirmDialog.open} onClose={() => setConfirmDialog({ open: false, action: null, tx: null, date: null })}>
+        <DialogTitle>Confirm {confirmDialog.action === 'remove' ? 'Remove' : confirmDialog.action === 'edit' ? 'Edit' : 'Add'} Transaction</DialogTitle>
+        <DialogContent>
+          <Typography>Are you sure you want to {confirmDialog.action === 'remove' ? 'remove' : confirmDialog.action === 'edit' ? 'edit' : 'add'} this transaction?</Typography>
+          {actionLoading && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mt: 2 }}>
+              <CircularProgress size={28} />
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDialog({ open: false, action: null, tx: null, date: null })} disabled={actionLoading}>Cancel</Button>
+          <Button color="primary" disabled={actionLoading} onClick={async () => {
+            setActionLoading(true);
+            if (confirmDialog.action === 'add') {
+              const token = localStorage.getItem('token');
+              await axios.post('http://localhost:8000/user_transactions/', confirmDialog.tx, {
+                headers: { Authorization: `Bearer ${token}` },
+                withCredentials: true,
+              });
+              setEventsByDate(prev => {
+                const key = confirmDialog.tx.date;
+                const copy = { ...prev };
+                copy[key] = [ ...(copy[key] || []), confirmDialog.tx ];
+                return copy;
+              });
+              refreshCurrentRange(); // force refetch
+              setOpenDay(confirmDialog.tx.date);
+              setIsAddOpen(false);
+              setEditData(null);
+            } else if (confirmDialog.action === 'edit') {
+              const token = localStorage.getItem('token');
+              await axios.put(`http://localhost:8000/user_transactions/${confirmDialog.tx.transaction_id}`, confirmDialog.tx, {
+                headers: { Authorization: `Bearer ${token}` },
+                withCredentials: true,
+              });
+              setEventsByDate(prev => {
+                const key = confirmDialog.tx.date;
+                const copy = { ...prev };
+                copy[key] = (copy[key] || []).map(t => t.transaction_id === confirmDialog.tx.transaction_id ? confirmDialog.tx : t);
+                return copy;
+              });
+              refreshCurrentRange(); // force refetch
+              setOpenDay(confirmDialog.tx.date);
+              setIsAddOpen(false);
+              setEditData(null);
+            } else if (confirmDialog.action === 'remove') {
+              const token = localStorage.getItem('token');
+              await axios.delete(`http://localhost:8000/user_transactions/${confirmDialog.tx.transaction_id}`, {
+                headers: { Authorization: `Bearer ${token}` },
+                withCredentials: true,
+              });
+              setEventsByDate(prev => {
+                const key = confirmDialog.tx.date;
+                const copy = { ...prev };
+                copy[key] = (copy[key] || []).filter(t => t.transaction_id !== confirmDialog.tx.transaction_id);
+                return copy;
+              });
+              refreshCurrentRange(); // Always update weekly view after delete, force refetch
+              setOpenDay(null);
+              setEditData(null);
+              // Force modal close after deletion
+              setIsAddOpen(false);
+              setSelectedTransaction(null);
+            }
+            setActionLoading(false);
+            setConfirmDialog({ open: false, action: null, tx: null, date: null });
+          }}>Confirm</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

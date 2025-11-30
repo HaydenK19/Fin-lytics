@@ -462,6 +462,11 @@ const EditTransactions = ({ onClose }) => {
                     View all your transactions and manage the ones you've added manually. 
                     Transactions from external sources (like Plaid) are read-only.
                 </Typography>
+                <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
+                        Transactions from external sources (like Plaid) are read-only.
+                    </Typography>
+                </Box>
 
                 <Typography variant="h6">Recent Transactions:</Typography>
                 {loading ? (
@@ -475,9 +480,7 @@ const EditTransactions = ({ onClose }) => {
                         color: '#666',
                         fontStyle: 'italic'
                     }}>
-                        <Typography variant="body2">
-                            No transactions found. Add your first transaction to get started!
-                        </Typography>
+                        <span>No transactions found. Add your first transaction to get started!</span>
                     </Box>
                 ) : (
                     <>

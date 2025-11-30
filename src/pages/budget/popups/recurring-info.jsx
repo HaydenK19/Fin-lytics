@@ -77,6 +77,7 @@ export default function RecurringChildrenModal({ open, onClose, parent = {}, chi
           onClose={() => { setEditOpen(false); setEditTarget(null); }}
           initialData={editTarget}
           isEdit={true}
+          isChild={true}
           onSubmit={handleSubmitFromDialog}
         />
       )}
