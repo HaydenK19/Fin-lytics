@@ -84,8 +84,13 @@ async def health_check():
         "status": "healthy",
         "service": "finlytics-fullstack",
         "auth_available": AUTH_AVAILABLE,
+        "frontend_available": FRONTEND_AVAILABLE,
         "jwt_configured": bool(os.getenv("JWT_SECRET_KEY")),
-        "database_configured": bool(os.getenv("DATABASE_URL"))
+        "database_configured": bool(os.getenv("DATABASE_URL")),
+        "current_dir": os.getcwd(),
+        "dist_exists": os.path.exists("/app/dist"),
+        "local_dist_exists": os.path.exists("../dist"),
+        "files_in_root": os.listdir("/app") if os.path.exists("/app") else "not found"
     }
 
 @app.get("/api/test")
@@ -98,10 +103,31 @@ async def test_endpoint():
 
 # Serve static frontend files
 try:
-    # Mount the built frontend
-    app.mount("/static", StaticFiles(directory="../dist"), name="static")
-    logger.info("✅ Frontend static files mounted")
-    FRONTEND_AVAILABLE = True
+    # Debug: Check available paths
+    logger.info(f"Current working directory: {os.getcwd()}")
+    logger.info(f"Files in current directory: {os.listdir('.')}")
+    
+    possible_paths = ["/app/dist", "../dist", "dist"]
+    dist_path = None
+    
+    for path in possible_paths:
+        if os.path.exists(path):
+            dist_path = path
+            logger.info(f"Found dist directory at: {path}")
+            if os.path.exists(os.path.join(path, "index.html")):
+                logger.info(f"✅ index.html found in {path}")
+            else:
+                logger.warning(f"⚠️ index.html NOT found in {path}")
+            break
+    
+    if dist_path:
+        app.mount("/static", StaticFiles(directory=dist_path), name="static")
+        logger.info(f"✅ Frontend static files mounted from {dist_path}")
+        FRONTEND_AVAILABLE = True
+    else:
+        logger.error("❌ No dist directory found")
+        FRONTEND_AVAILABLE = False
+        
 except Exception as e:
     logger.warning(f"⚠️  Frontend files not available: {e}")
     FRONTEND_AVAILABLE = False
@@ -111,8 +137,10 @@ except Exception as e:
 async def serve_frontend():
     if FRONTEND_AVAILABLE:
         try:
-            return FileResponse("../dist/index.html")
-        except:
+            index_path = "/app/dist/index.html" if os.path.exists("/app/dist/index.html") else "../dist/index.html"
+            return FileResponse(index_path)
+        except Exception as e:
+            logger.error(f"Failed to serve index.html: {e}")
             pass
     
     # Fallback response if frontend not available
@@ -137,8 +165,10 @@ async def serve_react_app(full_path: str):
     
     if FRONTEND_AVAILABLE:
         try:
-            return FileResponse("../dist/index.html")
-        except:
+            index_path = "/app/dist/index.html" if os.path.exists("/app/dist/index.html") else "../dist/index.html"
+            return FileResponse(index_path)
+        except Exception as e:
+            logger.error(f"Failed to serve React app: {e}")
             pass
     
     return {"error": "Frontend not available", "path": full_path}
