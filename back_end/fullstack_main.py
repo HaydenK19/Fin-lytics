@@ -101,6 +101,29 @@ async def test_endpoint():
         "backend_ready": AUTH_AVAILABLE and bool(os.getenv("JWT_SECRET_KEY"))
     }
 
+@app.get("/api/debug-assets")
+async def debug_assets():
+    """Debug endpoint to check asset availability"""
+    dist_path = "/app/dist" if os.path.exists("/app/dist") else "../dist"
+    assets_path = os.path.join(dist_path, "assets")
+    
+    result = {
+        "dist_path": dist_path,
+        "assets_path": assets_path,
+        "dist_files": [],
+        "assets_files": []
+    }
+    
+    try:
+        if os.path.exists(dist_path):
+            result["dist_files"] = os.listdir(dist_path)
+        if os.path.exists(assets_path):
+            result["assets_files"] = os.listdir(assets_path)
+    except Exception as e:
+        result["error"] = str(e)
+    
+    return result
+
 # Serve static frontend files
 try:
     # Debug: Check available paths
@@ -181,7 +204,16 @@ async def serve_react_app(full_path: str):
     
     if FRONTEND_AVAILABLE:
         try:
-            index_path = "/app/dist/index.html" if os.path.exists("/app/dist/index.html") else "../dist/index.html"
+            # Ensure we serve the built index.html for all frontend routes
+            if os.path.exists("/app/dist/index.html"):
+                index_path = "/app/dist/index.html"
+            elif os.path.exists("../dist/index.html"):
+                index_path = "../dist/index.html" 
+            else:
+                logger.error("No dist/index.html found for catch-all!")
+                return {"error": "Frontend build not found", "path": full_path}
+            
+            logger.info(f"Serving React app from: {index_path} for path: {full_path}")
             return FileResponse(index_path)
         except Exception as e:
             logger.error(f"Failed to serve React app: {e}")
