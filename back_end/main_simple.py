@@ -176,6 +176,49 @@ async def debug_env():
     
     return {"environment_variables": env_vars}
 
+@app.get("/debug/config-check")
+async def config_check():
+    """Check which required environment variables are missing"""
+    required_vars = {
+        "JWT_SECRET_KEY": "Required for user authentication",
+        "DATABASE_URL": "Required for database connection", 
+        "PLAID_CLIENT_ID": "Required for bank integration",
+        "PLAID_SECRET": "Required for bank integration",
+        "ENCRYPTION_KEY": "Required for data encryption"
+    }
+    
+    optional_vars = {
+        "FMP_API_KEY": "Stock data API",
+        "SENDGRID_API_KEY": "Email service", 
+        "HUGGING_FACE_URL": "AI predictions",
+        "HUGGING_FACE_TOKEN": "AI service authentication"
+    }
+    
+    missing_required = []
+    missing_optional = []
+    present_vars = []
+    
+    for var, description in required_vars.items():
+        if os.getenv(var):
+            present_vars.append(f"✅ {var}: {description}")
+        else:
+            missing_required.append(f"❌ {var}: {description}")
+    
+    for var, description in optional_vars.items():
+        if os.getenv(var):
+            present_vars.append(f"✅ {var}: {description}")
+        else:
+            missing_optional.append(f"⚠️  {var}: {description}")
+    
+    return {
+        "status": "missing_required" if missing_required else "ready",
+        "present_variables": present_vars,
+        "missing_required": missing_required,
+        "missing_optional": missing_optional,
+        "login_will_work": len(missing_required) == 0,
+        "note": "Set missing required variables in Railway environment settings"
+    }
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
