@@ -2,30 +2,26 @@
 Startup script to initialize the prediction service when the backend starts
 """
 import logging
-from stock_prediction_service import prediction_service
+from stock_prediction_service_lite import start_prediction_service, stop_prediction_service
 
 logger = logging.getLogger(__name__)
 
 def initialize_prediction_service():
-    """Initialize the prediction service on startup (using external AI service)"""
+    """Initialize the prediction service on startup (using Hugging Face AI service)"""
     try:
-        # No local model loading needed - using external AI service
-        logger.info("Using external AI service for predictions")
+        logger.info("Initializing Finlytics prediction service with Hugging Face AI")
         
-        # Optionally start predictions for default tickers
-        tickers = prediction_service.get_daily_prediction_tickers()
-        if tickers:
-            prediction_service.start_predictions(tickers)
-            logger.info(f"Started prediction service for tickers: {tickers}")
-        else:
-            logger.warning("No tickers available to start prediction service")
+        # Start the lightweight prediction service
+        start_prediction_service()
+        logger.info("Prediction service started successfully")
+        
     except Exception as e:
         logger.error(f"Error initializing prediction service: {e}")
 
 def cleanup_prediction_service():
     """Cleanup the prediction service on shutdown"""
     try:
-        prediction_service.stop_predictions()
+        stop_prediction_service()
         logger.info("Prediction service cleaned up successfully")
     except Exception as e:
         logger.error(f"Error cleaning up prediction service: {e}")

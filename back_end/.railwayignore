@@ -44,3 +44,26 @@ Thumbs.db
 node_modules/
 dist/
 public/
+
+# AI Models and large datasets (use Hugging Face API instead)
+../AI_model/
+../AutoGluonModels_multi/
+../5minutecharts/
+../15minutecharts/
+*.csv
+*.pkl
+*.joblib
+*.h5
+*.pt
+*.pth
+*.onnx
+*.tflite
+models/
+checkpoints/
+weights/
+
+# Large ML cache directories  
+.cache/
+.autogluon/
+.transformers_cache/
+.huggingface/
