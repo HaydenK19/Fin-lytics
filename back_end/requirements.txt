@@ -15,3 +15,4 @@ numpy
 polygon-api-client
 python-dateutil
 httpx
+aiohttp

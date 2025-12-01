@@ -49,6 +49,7 @@ back_end/lib/python3.12/site-packages/*
 
 #.env keys
 .env
+back_end/.env
 AI_model
 
 # Embedded git repositories
