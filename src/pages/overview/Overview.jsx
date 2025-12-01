@@ -6,6 +6,7 @@ import TopMovers from './components/TopMovers';
 import MarketOverview from './components/MarketOverview';
 import News from './components/News';
 import axios from 'axios';
+import PortfolioManager from './components/PortfolioManager';
 
 export default function Overview() {
   const [overviewData, setOverviewData] = useState(null);
@@ -58,48 +59,51 @@ export default function Overview() {
     );
 
   return (
-    <Box className="app-page">
-      <Grid container spacing={2} sx={{ width: '100%', m: 0, p: 0 }}>
-        <Grid item xs={12}>
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>Overview</Typography>
-            {portfolios.length > 0 && (
-              <FormControl size="small" sx={{ minWidth: 200 }}>
-                <InputLabel>Portfolio</InputLabel>
-                <Select
-                  value={selectedPortfolio || ''}
-                  label="Portfolio"
-                  onChange={(e) => setSelectedPortfolio(e.target.value)}
-                >
-                  {portfolios.map(p => (
-                    <MenuItem key={p.id} value={p.id}>{p.name || p.id}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-            <Button size="small" variant="outlined" onClick={(e) => setMenuAnchor(e.currentTarget)}>Manage Portfolios</Button>
-          </Box>
+    <Box
+      className="app-page"
+      sx={{
+        width: '100%',
+        minHeight: '100vh',
+        p: { xs: 1, sm: 3, md: 5 },
+        boxSizing: 'border-box',
+        overflowX: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+      }}
+    >
+      <Box
+        sx={{
+          width: '100%',
+          maxWidth: 1400,
+          background: 'rgba(255,255,255,0.95)',
+          borderRadius: 4,
+          boxShadow: '0 4px 32px 0 rgba(60,72,100,0.10)',
+          p: { xs: 2, sm: 4 },
+          mb: 3,
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3, width: '100%' }}>
+          <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: 1, color: '#2d3a4a' }}>Overview</Typography>
+          <PortfolioManager />
+        </Box>
+        <Grid container spacing={2} sx={{ width: '100%', flexWrap: 'wrap' }}>
+          <Grid item xs={12} md={10} sx={{ flexGrow: 1, minWidth: 0, width: { xs: '100%', md: '0' } }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%' }}>
+              <Summary summary={overviewData.summary} />
+              <Holdings portfolioId={selectedPortfolio} />
+            </Box>
+          </Grid>
+          <Grid item xs={12} md={2} sx={{ flexGrow: 1, minWidth: 0, width: { xs: '100%', md: '0' }, maxWidth: 340 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%' }}>
+              <TopMovers movers={overviewData.top_movers} />
+              <MarketOverview market={overviewData.market_overview} />
+            </Box>
+          </Grid>
         </Grid>
-      </Grid>
-
-      <Grid container spacing={2} sx={{ width: '100%', m: 0, p: 0 }}>
-        <Grid item xs={12} md={8}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Summary summary={overviewData.summary} />
-            <Holdings portfolioId={selectedPortfolio} />
-          </Box>
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TopMovers movers={overviewData.top_movers} />
-            <MarketOverview market={overviewData.market_overview} />
-          </Box>
-        </Grid>
-      </Grid>
-      
-      <Box sx={{ p: 2 }}>
-        <News news={overviewData.news_feed} />
+        <Box sx={{ mt: 4 }}>
+          <News news={overviewData.news_feed} />
+        </Box>
       </Box>
     </Box>
   );
