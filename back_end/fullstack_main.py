@@ -144,15 +144,23 @@ try:
             break
     
     if dist_path:
-        # Mount assets directory to serve JS, CSS, images
+        # Mount assets directory to serve JS, CSS, images at /assets
         assets_path = os.path.join(dist_path, "assets")
         if os.path.exists(assets_path):
             app.mount("/assets", StaticFiles(directory=assets_path), name="assets")
-            logger.info(f"✅ Assets mounted from {assets_path}")
+            logger.info(f"✅ Assets mounted: /assets -> {assets_path}")
+            # Log specific files being served
+            try:
+                asset_files = os.listdir(assets_path)
+                logger.info(f"Assets available: {asset_files}")
+            except:
+                pass
+        else:
+            logger.error(f"❌ Assets directory not found: {assets_path}")
         
-        # Also mount vite.svg and other root files  
-        app.mount("/static", StaticFiles(directory=dist_path), name="static")
-        logger.info(f"✅ Frontend static files mounted from {dist_path}")
+        # Mount static files for other assets like vite.svg
+        app.mount("/static", StaticFiles(directory=dist_path), name="static") 
+        logger.info(f"✅ Static files mounted: /static -> {dist_path}")
         FRONTEND_AVAILABLE = True
     else:
         logger.error("❌ No dist directory found")
@@ -201,6 +209,10 @@ async def serve_react_app(full_path: str):
     # Don't serve frontend for API routes
     if full_path.startswith("api/"):
         raise HTTPException(status_code=404, detail="API endpoint not found")
+    
+    # Don't serve frontend for static assets - let StaticFiles handle them
+    if full_path.startswith("assets/") or full_path.startswith("static/"):
+        raise HTTPException(status_code=404, detail="Static file not found")
     
     if FRONTEND_AVAILABLE:
         try:
