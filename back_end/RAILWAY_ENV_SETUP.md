@@ -6,20 +6,15 @@ JWT_SECRET_KEY=your-super-secret-jwt-key-change-this-in-production
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 
-# ==== DATABASE (REQUIRED) ====
-# Option 1: Full DATABASE_URL (recommended) - REPLACE WITH REAL VALUES:
-DATABASE_URL=mysql+pymysql://your_username:your_password@your_host:3306/your_database
+# ==== DATABASE (AWS RDS MySQL) ====
+# Your existing AWS RDS database connection:
+DATABASE_URL=mysql+pymysql://website_user:iamthesiteuser@financesite.cdoka0swm67i.us-east-2.rds.amazonaws.com:3306/database
 
-# Example formats:
-# MySQL: mysql+pymysql://user:pass@host.com:3306/dbname
-# PostgreSQL: postgresql://user:pass@host.com:5432/dbname
-# SQLite (dev only): sqlite:///./finlytics.db
-
-# Option 2: Individual database components (if you prefer)
-# DATABASE_USERNAME=your_db_username
-# DATABASE_PASSWORD=your_db_password  
-# DATABASE_HOST=your_db_host:3306
-# DATABASE_NAME=your_db_name
+# Alternative: Individual components (already configured as fallbacks)
+# DATABASE_USERNAME=website_user
+# DATABASE_PASSWORD=iamthesiteuser  
+# DATABASE_HOST=financesite.cdoka0swm67i.us-east-2.rds.amazonaws.com
+# DATABASE_NAME=database
 
 # ==== PLAID BANK INTEGRATION ====
 PLAID_CLIENT_ID=your_plaid_client_id
