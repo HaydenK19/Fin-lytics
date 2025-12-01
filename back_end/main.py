@@ -23,8 +23,10 @@ app = FastAPI()
 
 origins = [
     "https://localhost:5173",
-    "http://localhost:5173",
+    "http://localhost:5173", 
     "http://127.0.0.1:5173",
+    "https://fin-lytics.com",
+    "https://*.railway.app",  # Allow Railway backend domains
 ]
 
 app.add_middleware(
@@ -66,6 +68,11 @@ def get_db():
 
 db_dependency = Annotated[Session, Depends(get_db)]
 user_dependency = Annotated[dict, Depends(get_current_user)]
+
+# Health check endpoint for Railway
+@app.get("/health", status_code=status.HTTP_200_OK)
+async def health_check():
+    return {"status": "healthy", "service": "finlytics-backend"}
 
 # A user must send a valid token to access the route
 # If token is valid, the user info is returned

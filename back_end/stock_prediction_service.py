@@ -5,7 +5,6 @@ import logging
 import requests
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
-from autogluon.timeseries import TimeSeriesDataFrame, TimeSeriesPredictor
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 from database import SessionLocal
@@ -13,6 +12,7 @@ from models import Stock_Prediction
 import threading
 import time
 import random
+from ai_service_client import ai_service, get_stock_prediction, get_batch_predictions
 
 load_dotenv()
 
@@ -136,108 +136,73 @@ class StockPredictionService:
         
         return out
     
-    def make_prediction(self, ticker: str) -> Optional[Dict]:
-        """Make prediction for a given ticker"""
+    async def make_prediction(self, ticker: str) -> Optional[Dict]:
+        """Make prediction for a given ticker using Hugging Face AI service"""
         try:
-            if not self.predictor:
-                logger.error("Model not loaded")
+            # Call Hugging Face AI service
+            result = await get_stock_prediction(ticker, periods=30)
+            
+            if result and result.get('predictions'):
+                # Get the first prediction (next day)
+                first_prediction = result['predictions'][0]
+                
+                prediction_data = {
+                    'ticker': ticker.upper(),
+                    'predicted_price': float(first_prediction['predicted_price']),
+                    'confidence_low': float(first_prediction['confidence_lower']),
+                    'confidence_high': float(first_prediction['confidence_upper']),
+                    'prediction_time': datetime.now(),
+                    'horizon_minutes': 1440,  # 24 hours (1 day)
+                    'model_version': result.get('model_used', 'HuggingFace')
+                }
+                
+                logger.info(f"Generated prediction for {ticker}: ${prediction_data['predicted_price']:.2f}")
+                return prediction_data
+            else:
+                logger.warning(f"No valid prediction received for {ticker}")
                 return None
-            
-            # Fetch recent data
-            df = self.fetch_stock_data(ticker)
-            if df is None or len(df) < 365:  # Need sufficient history
-                logger.warning(f"Insufficient data for {ticker}")
-                return None
-            
-            # Convert to TimeSeriesDataFrame
-            ts_data = TimeSeriesDataFrame.from_data_frame(
-                df, id_column="item_id", timestamp_column="timestamp"
-            )
-            
-            # Make prediction
-            predictions = self.predictor.predict(ts_data)
-            
-            # Convert to pandas for easier handling
-            try:
-                pred_df = predictions.to_pandas().reset_index()
-            except AttributeError:
-                pred_df = predictions.reset_index()
-            
-            # Filter for the specific ticker
-            ticker_preds = pred_df[pred_df['item_id'] == ticker].copy()
-            if ticker_preds.empty:
-                logger.warning(f"No predictions generated for {ticker}")
-                return None
-            
-            # Get the next prediction (first future point)
-            next_pred = ticker_preds.iloc[0]
-            
-            # Extract prediction values
-            prediction_data = {
-                'ticker': ticker,
-                'predicted_price': float(next_pred.get('mean', next_pred.get('0.5', 0))),
-                'confidence_low': float(next_pred.get('0.1', 0)),
-                'confidence_high': float(next_pred.get('0.9', 0)),
-                'prediction_time': datetime.now(),
-                'horizon_minutes': 5,  # Next 5-minute candle
-                'model_version': 'ChronosFineTuned'
-            }
-            
-            logger.info(f"Generated prediction for {ticker}: ${prediction_data['predicted_price']:.2f}")
-            return prediction_data
             
         except Exception as e:
             logger.error(f"Prediction failed for {ticker}: {e}")
             return None
 
-    def make_interval_predictions(self, ticker: str) -> Optional[List[Dict]]:
-        """Generate multi-interval predictions for a given ticker."""
+    async def make_interval_predictions(self, ticker: str) -> Optional[List[Dict]]:
+        """Generate multi-interval predictions for a given ticker using Hugging Face AI service"""
         try:
-            if not self.predictor:
-                logger.error("Model not loaded")
+            # Get predictions from Hugging Face AI service
+            result = await get_stock_prediction(ticker, periods=30)
+            
+            if not result or not result.get('predictions'):
+                logger.warning(f"No predictions received for {ticker}")
                 return None
 
-            # Fetch historical stock data
-            df = self.fetch_stock_data(ticker)
-            if df is None or len(df) < 365:
-                logger.warning(f"Insufficient data for {ticker}")
-                return None
-
-            # Convert to TimeSeriesDataFrame for AutoGluon
-            ts_data = TimeSeriesDataFrame.from_data_frame(
-                df, id_column="item_id", timestamp_column="timestamp"
-            )
-
-            # Run Chronos prediction
-            # Run Chronos prediction
-            predictions = self.predictor.predict(ts_data)
-
-            # Convert predictions safely regardless of AG version
-            if hasattr(predictions, "to_pandas"):
-                pred_df = predictions.to_pandas().reset_index()
-            else:
-                pred_df = predictions.reset_index()
-
-            ticker_preds = pred_df[pred_df["item_id"] == ticker]
-            if ticker_preds.empty:
-                logger.warning(f"No predictions for {ticker}")
-                return None
-
-            # Get last known close
-            last_close = float(df["target"].iloc[-1])
-
-            # Define intervals (minutes)
-            intervals = [5, 15, 30, 60, 1440]  # up to 1 day
-            rows = ticker_preds.head(len(intervals))
-
+            predictions = result['predictions']
+            
+            # Simulate different intervals based on the daily predictions
+            intervals = [
+                {"label": "5m", "days": 0.003472},   # ~5 minutes as fraction of day
+                {"label": "15m", "days": 0.0104},    # ~15 minutes 
+                {"label": "30m", "days": 0.0208},    # ~30 minutes
+                {"label": "1h", "days": 0.0417},     # ~1 hour
+                {"label": "1d", "days": 1}           # 1 day
+            ]
+            
             results = []
-            for i, row in enumerate(rows.itertuples()):
-                predicted_price = float(getattr(row, "mean", getattr(row, "_0_5", 0)))
-                change = ((predicted_price - last_close) / last_close) * 100
-
+            base_price = float(predictions[0]['predicted_price'])
+            
+            for interval in intervals:
+                # Find the closest prediction day
+                target_day = min(len(predictions) - 1, int(interval['days'] * len(predictions)))
+                prediction = predictions[target_day]
+                
+                predicted_price = float(prediction['predicted_price'])
+                
+                # Calculate change from current/base price
+                change = ((predicted_price - base_price) / base_price) * 100
+                
                 results.append({
-                    "ticker": ticker,
-                    "interval": f"{intervals[i]}m" if intervals[i] < 1440 else "1d",
+                    "ticker": ticker.upper(),
+                    "interval": interval['label'],
                     "predicted_price": predicted_price,
                     "change": change
                 })
@@ -246,7 +211,7 @@ class StockPredictionService:
             return results
 
         except Exception as e:
-            logger.error(f"Prediction failed for {ticker}: {e}")
+            logger.error(f"Interval prediction failed for {ticker}: {e}")
             return None
 
     
@@ -277,7 +242,7 @@ class StockPredictionService:
             logger.error(f"Failed to save prediction: {e}")
     
     def prediction_loop(self, tickers: List[str] = None):
-        """Main prediction loop that runs every 5 minutes"""
+        """Main prediction loop that runs periodically"""
         if tickers is None:
             tickers = ['AAPL']  # Default to AAPL, can be expanded
         
@@ -285,19 +250,25 @@ class StockPredictionService:
         
         while self.is_running:
             try:
+                # Run async predictions in the sync loop
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
                 for ticker in tickers:
-                    # Make prediction
-                    prediction_data = self.make_prediction(ticker)
+                    # Make prediction using async method
+                    prediction_data = loop.run_until_complete(self.make_prediction(ticker))
                     if prediction_data:
                         # Save to database
                         self.save_prediction(prediction_data)
                 
-                # Wait for 5 minutes (300 seconds)
-                time.sleep(300)
+                loop.close()
+                
+                # Wait for 1 hour (3600 seconds) - longer interval for Hugging Face
+                time.sleep(3600)
                 
             except Exception as e:
                 logger.error(f"Error in prediction loop: {e}")
-                time.sleep(60)  # Wait 1 minute before retrying
+                time.sleep(300)  # Wait 5 minutes before retrying
     
     def start_predictions(self, tickers: List[str] = None):
         """Start the background prediction service"""
@@ -305,9 +276,8 @@ class StockPredictionService:
             logger.warning("Prediction service is already running")
             return
         
-        if not self.load_model():
-            logger.error("Failed to load model, cannot start predictions")
-            return
+        # No need to load local model - using Hugging Face service
+        logger.info("Using Hugging Face AI service for predictions")
         
         self.is_running = True
         self.prediction_thread = threading.Thread(
@@ -316,7 +286,7 @@ class StockPredictionService:
             daemon=True
         )
         self.prediction_thread.start()
-        logger.info("Prediction service started")
+        logger.info("Prediction service started with Hugging Face backend")
     
     def stop_predictions(self):
         """Stop the background prediction service"""

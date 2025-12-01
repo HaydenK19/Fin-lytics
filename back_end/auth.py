@@ -9,17 +9,25 @@ from models import Users, Settings, User_Balance
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
+import os
+import logging
 from email_service import send_email
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix='/auth',
     tags=['auth']
 )
 
-# Configuration
-SECRET_KEY = "hello"  # Key for JWT encoding (replace later)
-ALGORITHM = "HS256"  # Algorithm for JWT encoding
-ACCESS_TOKEN_EXPIRE_MINUTES = 30  # Access token duration
+# Configuration from environment variables (secure for Hugging Face)
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "hello")  # Use env var or fallback
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+
+# Warn if using fallback secret
+if SECRET_KEY == "hello":
+    logger.warning("Using default JWT secret key. Please set JWT_SECRET_KEY in environment variables!")
 
 bcrypt = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_bearer = OAuth2PasswordBearer(tokenUrl="auth/token")
