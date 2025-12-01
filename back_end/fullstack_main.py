@@ -124,6 +124,35 @@ async def debug_assets():
     
     return result
 
+@app.get("/api/debug-auth")
+async def debug_auth():
+    """Debug authentication configuration"""
+    result = {
+        "jwt_secret_set": bool(os.getenv("JWT_SECRET_KEY")),
+        "jwt_secret_length": len(os.getenv("JWT_SECRET_KEY", "")),
+        "database_url_set": bool(os.getenv("DATABASE_URL")),
+        "algorithm": os.getenv("ALGORITHM", "HS256"),
+        "token_expire_minutes": os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"),
+        "auth_available": AUTH_AVAILABLE,
+    }
+    
+    # Check encryption key format
+    encryption_key = os.getenv("ENCRYPTION_KEY")
+    if encryption_key:
+        result["encryption_key_set"] = True
+        result["encryption_key_length"] = len(encryption_key)
+        try:
+            from cryptography.fernet import Fernet
+            Fernet(encryption_key.encode())
+            result["encryption_key_valid"] = True
+        except Exception as e:
+            result["encryption_key_valid"] = False
+            result["encryption_key_error"] = str(e)
+    else:
+        result["encryption_key_set"] = False
+    
+    return result
+
 # Serve static frontend files
 try:
     # Debug: Check available paths
