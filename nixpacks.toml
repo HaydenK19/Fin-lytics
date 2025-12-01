@@ -1,0 +1,14 @@
+[phases.setup]
+nixPkgs = ['nodejs_18', 'python311', 'pip']
+
+[phases.install]
+cmds = [
+    'npm ci',
+    'cd back_end && pip install -r requirements.txt'
+]
+
+[phases.build]
+cmds = ['npm run build']
+
+[start]
+cmd = 'cd back_end && python -m uvicorn fullstack_main:app --host 0.0.0.0 --port $PORT'

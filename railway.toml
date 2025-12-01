@@ -2,6 +2,6 @@
 builder = "nixpacks"
 
 [deploy] 
-startCommand = "cd back_end && uvicorn fullstack_main:app --host 0.0.0.0 --port $PORT"
+startCommand = "cd back_end && python -m uvicorn fullstack_main:app --host 0.0.0.0 --port $PORT --log-level info"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 300
