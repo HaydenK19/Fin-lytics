@@ -227,12 +227,30 @@ async def config_check():
         else:
             missing_optional.append(f"⚠️  {var}: {description}")
     
+    # Validate DATABASE_URL format
+    db_url_status = "not_set"
+    db_url = os.getenv("DATABASE_URL")
+    if db_url:
+        if "mysql+pymysql://" in db_url or "postgresql://" in db_url or "sqlite://" in db_url:
+            if "username:password@host:port" in db_url or ":" in db_url.split("://")[1]:
+                db_url_status = "valid_format"
+            else:
+                db_url_status = "invalid_format"
+        else:
+            db_url_status = "invalid_protocol"
+    
     return {
         "status": "missing_required" if missing_required else "ready",
         "present_variables": present_vars,
         "missing_required": missing_required,
         "missing_optional": missing_optional,
-        "login_will_work": len(missing_required) == 0,
+        "database_url_status": db_url_status,
+        "database_url_help": {
+            "current": "***HIDDEN***" if db_url else "NOT SET",
+            "example": "mysql+pymysql://user:pass@host:3306/dbname",
+            "error_hint": "Replace 'username', 'password', 'host', 'port', 'dbname' with real values"
+        },
+        "login_will_work": len(missing_required) == 0 and db_url_status == "valid_format",
         "note": "Set missing required variables in Railway environment settings"
     }
 

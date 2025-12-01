@@ -7,13 +7,18 @@ ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 
 # ==== DATABASE (REQUIRED) ====
-# Option 1: Full DATABASE_URL (recommended)
-DATABASE_URL=mysql+pymysql://username:password@host:port/database_name
+# Option 1: Full DATABASE_URL (recommended) - REPLACE WITH REAL VALUES:
+DATABASE_URL=mysql+pymysql://your_username:your_password@your_host:3306/your_database
+
+# Example formats:
+# MySQL: mysql+pymysql://user:pass@host.com:3306/dbname
+# PostgreSQL: postgresql://user:pass@host.com:5432/dbname
+# SQLite (dev only): sqlite:///./finlytics.db
 
 # Option 2: Individual database components (if you prefer)
 # DATABASE_USERNAME=your_db_username
 # DATABASE_PASSWORD=your_db_password  
-# DATABASE_HOST=your_db_host
+# DATABASE_HOST=your_db_host:3306
 # DATABASE_NAME=your_db_name
 
 # ==== PLAID BANK INTEGRATION ====
