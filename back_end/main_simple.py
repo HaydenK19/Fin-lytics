@@ -29,7 +29,7 @@ origins = [
     "http://127.0.0.1:5173",
     "https://fin-lytics.com",
     "https://www.fin-lytics.com",
-    "https://*.railway.app",
+    "*",  # Temporarily allow all origins for debugging
 ]
 
 app.add_middleware(
@@ -189,9 +189,31 @@ async def test_endpoint():
     """Simple test endpoint to verify the service is responding"""
     return {
         "message": "✅ Backend is responding!",
-        "service": "finlytics-backend",
-        "status": "working"
+        "service": "finlytics-backend", 
+        "status": "working",
+        "jwt_secret_set": bool(os.getenv("JWT_SECRET_KEY")),
+        "database_url_set": bool(os.getenv("DATABASE_URL")),
+        "timestamp": "2025-12-01"
     }
+
+# Test authentication setup
+@app.get("/test-auth")  
+async def test_auth_setup():
+    """Test if authentication is properly configured"""
+    try:
+        jwt_secret = os.getenv("JWT_SECRET_KEY")
+        db_url = os.getenv("DATABASE_URL") 
+        
+        return {
+            "jwt_secret_configured": bool(jwt_secret),
+            "jwt_secret_length": len(jwt_secret) if jwt_secret else 0,
+            "database_configured": bool(db_url),
+            "auth_module_loaded": "auth" in sys.modules,
+            "can_create_tokens": jwt_secret and len(jwt_secret) > 10,
+            "ready_for_login": bool(jwt_secret) and bool(db_url)
+        }
+    except Exception as e:
+        return {"error": str(e), "auth_setup": False}
 
 @app.get("/debug/config-check")
 async def config_check():
