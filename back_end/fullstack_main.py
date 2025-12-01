@@ -121,6 +121,13 @@ try:
             break
     
     if dist_path:
+        # Mount assets directory to serve JS, CSS, images
+        assets_path = os.path.join(dist_path, "assets")
+        if os.path.exists(assets_path):
+            app.mount("/assets", StaticFiles(directory=assets_path), name="assets")
+            logger.info(f"✅ Assets mounted from {assets_path}")
+        
+        # Also mount vite.svg and other root files  
         app.mount("/static", StaticFiles(directory=dist_path), name="static")
         logger.info(f"✅ Frontend static files mounted from {dist_path}")
         FRONTEND_AVAILABLE = True
@@ -131,6 +138,15 @@ try:
 except Exception as e:
     logger.warning(f"⚠️  Frontend files not available: {e}")
     FRONTEND_AVAILABLE = False
+
+# Serve vite.svg and other root-level static files
+@app.get("/vite.svg")
+async def serve_vite_svg():
+    dist_path = "/app/dist" if os.path.exists("/app/dist") else "../dist"
+    vite_svg_path = os.path.join(dist_path, "vite.svg")
+    if os.path.exists(vite_svg_path):
+        return FileResponse(vite_svg_path)
+    raise HTTPException(status_code=404, detail="vite.svg not found")
 
 # Serve the React app for all non-API routes
 @app.get("/")
