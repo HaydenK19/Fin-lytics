@@ -62,13 +62,11 @@ const App = () => {
 
       try {
         const [settingsRes, userInfoRes] = await Promise.all([
-          axios.get("http://localhost:8000/user_settings/", {
+          api.get("/user_settings/", {
             headers: authHeaders(),
-            withCredentials: true,
           }),
-          axios.get("http://localhost:8000/user_info/", {
+          api.get("/user_info/", {
             headers: authHeaders(),
-            withCredentials: true,
           }),
         ]);
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../../api.js";
 import { Box, Button, TextField, Typography, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 
@@ -30,7 +30,7 @@ const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuth
 
         try {
             if (isSigningUp) {
-                const response = await axios.post("http://localhost:8000/auth/", {
+                const response = await api.post("/auth/", {
                     first_name: firstName,
                     last_name: lastName,
                     email: email,
@@ -41,8 +41,8 @@ const LoginBlock = ({ toggleLoginBlock, isSigningUp: initialSigningUp, setIsAuth
                 console.log("Sign-up successful:", response.data);
             }
 
-            const loginResponse = await axios.post(
-                "http://localhost:8000/auth/token",
+            const loginResponse = await api.post(
+                "/auth/token",
                 new URLSearchParams({
                     username: username,
                     password: password,

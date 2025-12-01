@@ -30,7 +30,7 @@ if SECRET_KEY == "hello":
     logger.warning("Using default JWT secret key. Please set JWT_SECRET_KEY in environment variables!")
 
 bcrypt = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_bearer = OAuth2PasswordBearer(tokenUrl="auth/token")
+oauth2_bearer = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
 
 # Pydantic models
 class CreateUserRequest(BaseModel):

@@ -49,8 +49,8 @@ try:
     db_dependency = Annotated[Session, Depends(get_db)]
     user_dependency = Annotated[dict, Depends(get_current_user)]
     
-    # Include auth router
-    app.include_router(auth.router)
+    # Include auth router with /api prefix
+    app.include_router(auth.router, prefix="/api")
     
     # Add other routers with error handling
     backend_routes = [
@@ -66,7 +66,7 @@ try:
         try:
             module = __import__(module_name)
             if hasattr(module, 'router'):
-                app.include_router(module.router)
+                app.include_router(module.router, prefix="/api")
                 logger.info(f"✅ Loaded {description}")
         except Exception as e:
             logger.warning(f"⚠️  Skipped {module_name}: {e}")
