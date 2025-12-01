@@ -18,6 +18,13 @@ import entered_transactions
 import balance_routes
 from startup import initialize_prediction_service, cleanup_prediction_service
 import atexit
+import os
+import sys
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -27,7 +34,7 @@ origins = [
     "http://127.0.0.1:5173",
     "https://fin-lytics.com",
     "https://www.fin-lytics.com",
-    "https://*.railway.app",  # Allow Railway frontend
+    "*",  # Allow all origins for debugging
 ]
 
 app.add_middleware(
@@ -73,7 +80,43 @@ user_dependency = Annotated[dict, Depends(get_current_user)]
 # Health check endpoint for Railway
 @app.get("/health", status_code=status.HTTP_200_OK)
 async def health_check():
-    return {"status": "healthy", "service": "finlytics-backend"}
+    return {
+        "status": "healthy", 
+        "service": "finlytics-backend",
+        "jwt_configured": bool(os.getenv("JWT_SECRET_KEY")),
+        "database_configured": bool(os.getenv("DATABASE_URL"))
+    }
+
+# Debug endpoints
+@app.get("/test")
+async def test_endpoint():
+    """Test endpoint to verify backend is working"""
+    return {
+        "message": "✅ Backend is responding!",
+        "service": "finlytics-backend", 
+        "status": "working",
+        "jwt_secret_set": bool(os.getenv("JWT_SECRET_KEY")),
+        "database_url_set": bool(os.getenv("DATABASE_URL")),
+        "timestamp": "2025-12-01"
+    }
+
+@app.get("/test-auth")  
+async def test_auth_setup():
+    """Test if authentication is properly configured"""
+    try:
+        jwt_secret = os.getenv("JWT_SECRET_KEY")
+        db_url = os.getenv("DATABASE_URL") 
+        
+        return {
+            "jwt_secret_configured": bool(jwt_secret),
+            "jwt_secret_length": len(jwt_secret) if jwt_secret else 0,
+            "database_configured": bool(db_url),
+            "auth_module_loaded": "auth" in sys.modules,
+            "can_create_tokens": jwt_secret and len(jwt_secret) > 10,
+            "ready_for_login": bool(jwt_secret) and bool(db_url)
+        }
+    except Exception as e:
+        return {"error": str(e), "auth_setup": False}
 
 # A user must send a valid token to access the route
 # If token is valid, the user info is returned
