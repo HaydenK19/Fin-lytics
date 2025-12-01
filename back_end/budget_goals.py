@@ -53,18 +53,48 @@ class BudgetGoalResponse(BaseModel):
 
 # ==================== Routes ====================
 
+
+from models import User_Categories
+
 @router.get("/", response_model=List[BudgetGoalResponse])
 async def get_budget_goals(user: Annotated[dict, Depends(get_current_user)], 
                           db: db_dependency,
                           goal_type: Optional[str] = None):
-    """Get all budget goals for the current user, optionally filtered by goal_type."""
-    query = db.query(Budget_Goals).filter(Budget_Goals.user_id == user["id"], Budget_Goals.is_active == True)
-    
-    if goal_type:
-        query = query.filter(Budget_Goals.goal_type == goal_type)
-    
-    goals = query.all()
-    return goals
+    """Get all budget goals for the current user, optionally filtered by goal_type. For category, return all user categories merged with their budget goals."""
+    if goal_type == "category":
+        # Get all user categories
+        categories = db.query(User_Categories).filter(User_Categories.user_id == user["id"]).all()
+        # Get all active category budget goals
+        goals = db.query(Budget_Goals).filter(Budget_Goals.user_id == user["id"], Budget_Goals.goal_type == "category", Budget_Goals.is_active == True).all()
+        # Map by category_name for quick lookup
+        goal_map = {g.category_name: g for g in goals}
+        result = []
+        for cat in categories:
+            g = goal_map.get(cat.name)
+            if g:
+                # Use the actual goal
+                result.append(g)
+            else:
+                # Return a default goal object for categories with no goal
+                result.append(Budget_Goals(
+                    id=-cat.id,  # negative id to avoid collision
+                    user_id=user["id"],
+                    goal_type="category",
+                    goal_name=f"{cat.name} Budget",
+                    goal_amount=0.0,
+                    time_period="monthly",
+                    category_name=cat.name,
+                    created_at=cat.created_at if hasattr(cat, 'created_at') else datetime.utcnow(),
+                    updated_at=cat.created_at if hasattr(cat, 'created_at') else datetime.utcnow(),
+                    is_active=True
+                ))
+        return result
+    else:
+        query = db.query(Budget_Goals).filter(Budget_Goals.user_id == user["id"], Budget_Goals.is_active == True)
+        if goal_type:
+            query = query.filter(Budget_Goals.goal_type == goal_type)
+        goals = query.all()
+        return goals
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=BudgetGoalResponse)
 async def create_budget_goal(user: Annotated[dict, Depends(get_current_user)], 

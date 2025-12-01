@@ -67,16 +67,11 @@ const ProjectionsCard = () => {
     const [monthlyExpenses, setMonthlyExpenses] = useState([]);
     
     // Budget goals integration
-    const [budgetGoals, setBudgetGoals] = useState({
-        annual: [],
-        category: []
-    });
-    const [selectedCategoryGoals, setSelectedCategoryGoals] = useState([]);
-    const [selectedAnnualGoal, setSelectedAnnualGoal] = useState(null);
-    const [includeAnnualExpenses, setIncludeAnnualExpenses] = useState(false);
-    const [loadingGoals, setLoadingGoals] = useState(false);
+    const [categories, setCategories] = useState([]); // fetched from /user_categories/
+    const [selectedCategoryIds, setSelectedCategoryIds] = useState([]); // selected category ids
+    const [loadingCategories, setLoadingCategories] = useState(false);
     const [recurringModalOpen, setRecurringModalOpen] = useState(false);
-    
+
     //recurring transactions integration
     const [recurringTransactions, setRecurringTransactions] = useState([]);
     const [selectedRecurringTransactions, setSelectedRecurringTransactions] = useState([]);
@@ -117,37 +112,34 @@ const ProjectionsCard = () => {
     }, [timeframe, startDate, endDate, savingsGoal, frequency, monthlyExpenses]);
 
     //load budget goals and recurring transactions on component mount
+
     useEffect(() => {
-        fetchBudgetGoals();
+        fetchCategories();
         fetchRecurringTransactions();
+
+        // Listen for custom event to refresh categories after modal updates
+        const handleCategoriesUpdated = () => {
+            fetchCategories();
+        };
+        window.addEventListener('budgetGoalsUpdated', handleCategoriesUpdated);
+        return () => {
+            window.removeEventListener('budgetGoalsUpdated', handleCategoriesUpdated);
+        };
     }, []);
 
-    const fetchBudgetGoals = async () => {
+    const fetchCategories = async () => {
         try {
-            setLoadingGoals(true);
+            setLoadingCategories(true);
             const token = localStorage.getItem('token');
-            
-            // Fetch both annual and category goals
-            const [annualResponse, categoryResponse] = await Promise.all([
-                axios.get('http://localhost:8000/budget-goals/?goal_type=annual', {
-                    headers: { Authorization: `Bearer ${token}` },
-                    withCredentials: true,
-                }),
-                axios.get('http://localhost:8000/budget-goals/?goal_type=category', {
-                    headers: { Authorization: `Bearer ${token}` },
-                    withCredentials: true,
-                })
-            ]);
-            
-            setBudgetGoals({
-                annual: annualResponse.data,
-                category: categoryResponse.data
+            const response = await axios.get('http://localhost:8000/user_categories/', {
+                headers: { Authorization: `Bearer ${token}` },
+                withCredentials: true,
             });
-            
+            setCategories(response.data);
         } catch (error) {
-            console.error('Error fetching budget goals:', error);
+            console.error('Error fetching categories:', error);
         } finally {
-            setLoadingGoals(false);
+            setLoadingCategories(false);
         }
     };
 
@@ -220,20 +212,32 @@ const ProjectionsCard = () => {
         return Math.max(0, months);
     };
 
+    // Compute totals for projections, treating selected category budgets as max allowed per month
     const computeTotals = () => {
         const months = timeframesInMonths[timeframe] || 0;
-
-        const totalMonthlyExp = monthlyExpenses.reduce((acc, cur) => acc + (parseFloat(cur.amount) || 0), 0);
         const intervals = Math.max(months * (intervalsPerMonth[frequency] || 0), 0);
-        
-        let recurringExpenses = 0;
+
+        // 1. Manual monthly expenses (user entered)
+        const manualMonthly = monthlyExpenses.reduce((acc, cur) => acc + (parseFloat(cur.amount) || 0), 0);
+
+        // 2. Category budgets (max per month for each selected category)
+        let categoryMonthly = 0;
+        selectedCategoryIds.forEach(catId => {
+            const cat = categories.find(c => c.id === catId);
+            if (cat) {
+                categoryMonthly += (cat.weekly_limit || 0);
+            }
+        });
+
+        // 3. Recurring transactions (convert to monthly equivalent)
+        let recurringMonthly = 0;
         selectedRecurringTransactions.forEach(txId => {
             const tx = recurringTransactions.find(t => t.id === txId);
             if (tx) {
                 let txPerMonth = 0;
                 switch (tx.frequency_type) {
                     case 'weekly':
-                        txPerMonth = Math.abs(tx.amount) * 4; // ~4 weeks per month
+                        txPerMonth = Math.abs(tx.amount) * 4;
                         break;
                     case 'monthly':
                         txPerMonth = Math.abs(tx.amount);
@@ -242,43 +246,31 @@ const ProjectionsCard = () => {
                         txPerMonth = Math.abs(tx.amount) / 12;
                         break;
                     default:
-                        txPerMonth = Math.abs(tx.amount); // default to monthly
+                        txPerMonth = Math.abs(tx.amount);
                 }
-                recurringExpenses += txPerMonth * months;
+                recurringMonthly += txPerMonth;
             }
         });
 
-        let categoryBudgetExpenses = 0;
-        selectedCategoryGoals.forEach(goalId => {
-            const goal = budgetGoals.category.find(g => g.id === goalId);
-            if (goal) {
-                categoryBudgetExpenses += goal.goal_amount * months; // Scale monthly goals to time period
-            }
-        });
-
-        let annualExpenses = 0;
-        if (selectedAnnualGoal && includeAnnualExpenses) {
-            const annualGoal = budgetGoals.annual.find(g => g.id === selectedAnnualGoal);
-            if (annualGoal) {
-                // Prorate annual goal to the selected timeframe
-                annualExpenses = (annualGoal.goal_amount / 12) * months;
-            }
-        }
-
-        const totalExpensesOverPeriod = totalMonthlyExp * months + categoryBudgetExpenses + annualExpenses + recurringExpenses;
+        // 4. Total monthly expenses (sum of all above)
+        const totalMonthlyExp = manualMonthly + categoryMonthly + recurringMonthly;
+        // 5. Total expenses over the period
+        const totalExpensesOverPeriod = totalMonthlyExp * months;
+        // 6. Net to save (goal - all expenses)
         const netToSave = savingsGoal - totalExpensesOverPeriod;
+        // 7. Per interval savings needed
         const perInterval = intervals > 0 ? netToSave / intervals : 0;
 
-        return { 
-            months, 
-            totalMonthlyExp, 
-            totalExpensesOverPeriod, 
-            intervals, 
-            netToSave, 
+        return {
+            months,
+            totalMonthlyExp,
+            totalExpensesOverPeriod,
+            intervals,
+            netToSave,
             perInterval,
-            categoryBudgetExpenses,
-            annualExpenses,
-            recurringExpenses
+            manualMonthly,
+            categoryMonthly,
+            recurringMonthly
         };
     };
 
@@ -512,64 +504,63 @@ const ProjectionsCard = () => {
                                         <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                                             Import Budget Goals
                                         </Typography>
-                                        
-                                        {loadingGoals ? (
+                                        {loadingCategories ? (
                                             <Box display="flex" alignItems="center" gap={1}>
                                                 <CircularProgress size={16} />
-                                                <Typography variant="caption">Loading budget goals...</Typography>
+                                                <Typography variant="caption">Loading categories...</Typography>
                                             </Box>
                                         ) : (
                                             <>
-                                                {budgetGoals.category.length > 0 && (
+                                                {categories.length > 0 && (
                                                     <Box>
                                                         <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
                                                             Select categories to include in your projections. Amounts will be scaled to your timeframe.
                                                         </Typography>
                                                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                                            {budgetGoals.annual.map((goal) => (
-                                                                <Chip
-                                                                    key={goal.id}
-                                                                    label={`${goal.goal_name}: ${formatCurrency(goal.goal_amount)}/year`}
-                                                                    variant={selectedAnnualGoal === goal.id && includeAnnualExpenses ? "filled" : "outlined"}
-                                                                    color={selectedAnnualGoal === goal.id && includeAnnualExpenses ? "secondary" : "default"}
-                                                                    onClick={() => {
-                                                                        if (selectedAnnualGoal === goal.id && includeAnnualExpenses) {
-                                                                            setSelectedAnnualGoal(null);
-                                                                            setIncludeAnnualExpenses(false);
-                                                                        } else {
-                                                                            setSelectedAnnualGoal(goal.id);
-                                                                            setIncludeAnnualExpenses(true);
+                                                            {categories.map((cat) => {
+                                                                const selected = selectedCategoryIds.includes(cat.id);
+                                                                return (
+                                                                    <Chip
+                                                                        key={cat.id}
+                                                                        label={
+                                                                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                                                {selected && <span style={{ fontWeight: 700, fontSize: 16, marginRight: 2 }}>✓</span>}
+                                                                                {cat.name}: {formatCurrency(cat.weekly_limit)}/month
+                                                                            </span>
                                                                         }
-                                                                    }}
-                                                                    size="small"
-                                                                />
-                                                            ))}
-                                                            {budgetGoals.category.map((goal) => (
-                                                                <Chip
-                                                                    key={goal.id}
-                                                                    label={`${goal.category_name}: ${formatCurrency(goal.goal_amount)}/month`}
-                                                                    variant={selectedCategoryGoals.includes(goal.id) ? "filled" : "outlined"}
-                                                                    color={selectedCategoryGoals.includes(goal.id) ? "primary" : "default"}
-                                                                    onClick={() => {
-                                                                        if (selectedCategoryGoals.includes(goal.id)) {
-                                                                            setSelectedCategoryGoals(prev => prev.filter(id => id !== goal.id));
-                                                                        } else {
-                                                                            setSelectedCategoryGoals(prev => [...prev, goal.id]);
-                                                                        }
-                                                                    }}
-                                                                    size="small"
-                                                                />
-                                                            ))}
-                                                            
-                                                        </Box>
-                                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                                            
+                                                                        variant={selected ? "filled" : "outlined"}
+                                                                        sx={{
+                                                                            backgroundColor: selected
+                                                                                ? cat.color || '#2563eb'
+                                                                                : '#f5f5f5',
+                                                                            color: selected
+                                                                                ? '#fff'
+                                                                                : '#222',
+                                                                            borderColor: selected
+                                                                                ? cat.color || '#2563eb'
+                                                                                : '#d1d5db',
+                                                                            fontWeight: selected ? 700 : 500,
+                                                                            boxShadow: selected ? '0 0 0 2px #2563eb33' : undefined,
+                                                                            opacity: selected ? 1 : 1,
+                                                                            transition: 'background 0.2s, color 0.2s'
+                                                                        }}
+                                                                        onClick={() => {
+                                                                            if (selected) {
+                                                                                setSelectedCategoryIds(prev => prev.filter(id => id !== cat.id));
+                                                                            } else {
+                                                                                setSelectedCategoryIds(prev => [...prev, cat.id]);
+                                                                            }
+                                                                        }}
+                                                                        size="small"
+                                                                    />
+                                                                );
+                                                            })}
                                                         </Box>
                                                     </Box>
                                                 )}
-                                                {budgetGoals.category.length === 0 && budgetGoals.annual.length === 0 && (
+                                                {categories.length === 0 && (
                                                     <Alert severity="info">
-                                                        No budget goals found. Create some in the Budget Goals modal to use this feature.
+                                                        No categories found. Create some in the Budget Goals modal to use this feature.
                                                     </Alert>
                                                 )}
                                             </>
@@ -708,7 +699,7 @@ const ProjectionsCard = () => {
 export default ProjectionsCard;
 
 const ProjectedResults = ({ savingsGoal, timeframe, frequency, startDate, endDate, monthlyExpenses, computeTotals, setIsShowingResults }) => {
-    const { months, totalMonthlyExp, totalExpensesOverPeriod, intervals, netToSave, perInterval, categoryBudgetExpenses, annualExpenses, recurringExpenses } = computeTotals();
+    const { months, totalMonthlyExp, totalExpensesOverPeriod, intervals, netToSave, perInterval, manualMonthly, categoryMonthly, recurringMonthly } = computeTotals();
 
     return (
         <Paper sx={{ p: 1.5 }}>
@@ -735,49 +726,39 @@ const ProjectedResults = ({ savingsGoal, timeframe, frequency, startDate, endDat
 
                 <Typography variant="subtitle2">Expenses Breakdown</Typography>
                 
-                {monthlyExpenses.length > 0 && (
+                {(manualMonthly > 0 || categoryMonthly > 0 || recurringMonthly > 0) ? (
                     <>
-                        <Typography variant="body2" sx={{ fontWeight: 500, mt: 1 }}>Manual Monthly Expenses:</Typography>
-                        {monthlyExpenses.map((e) => (
-                            <Stack direction="row" justifyContent="space-between" key={e.id}>
-                                <Typography>{e.desc || 'Untitled'}</Typography>
-                                <Typography>{formatCurrency(parseFloat(e.amount) || 0)} / month</Typography>
-                            </Stack>
-                        ))}
+                        {manualMonthly > 0 && (
+                            <>
+                                <Typography variant="body2" sx={{ fontWeight: 500, mt: 1 }}>Manual Monthly Expenses:</Typography>
+                                {monthlyExpenses.map((e) => (
+                                    <Stack direction="row" justifyContent="space-between" key={e.id}>
+                                        <Typography>{e.desc || 'Untitled'}</Typography>
+                                        <Typography>{formatCurrency(parseFloat(e.amount) || 0)} / month</Typography>
+                                    </Stack>
+                                ))}
+                            </>
+                        )}
+                        {categoryMonthly > 0 && (
+                            <>
+                                <Typography variant="body2" sx={{ fontWeight: 500, mt: 1 }}>Category Budget Expenses:</Typography>
+                                <Stack direction="row" justifyContent="space-between">
+                                    <Typography>Selected category budgets (max per month, scaled to {months} months)</Typography>
+                                    <Typography>{formatCurrency(categoryMonthly * months)} total</Typography>
+                                </Stack>
+                            </>
+                        )}
+                        {recurringMonthly > 0 && (
+                            <>
+                                <Typography variant="body2" sx={{ fontWeight: 500, mt: 1 }}>Recurring Transaction Expenses:</Typography>
+                                <Stack direction="row" justifyContent="space-between">
+                                    <Typography>Selected recurring transactions (scaled to {months} months)</Typography>
+                                    <Typography>{formatCurrency(recurringMonthly * months)} total</Typography>
+                                </Stack>
+                            </>
+                        )}
                     </>
-                )}
-
-                {categoryBudgetExpenses > 0 && (
-                    <>
-                        <Typography variant="body2" sx={{ fontWeight: 500, mt: 1 }}>Category Budget Expenses:</Typography>
-                        <Stack direction="row" justifyContent="space-between">
-                            <Typography>Selected category budgets (scaled to {months} months)</Typography>
-                            <Typography>{formatCurrency(categoryBudgetExpenses)} total</Typography>
-                        </Stack>
-                    </>
-                )}
-
-                {recurringExpenses > 0 && (
-                    <>
-                        <Typography variant="body2" sx={{ fontWeight: 500, mt: 1 }}>Recurring Transaction Expenses:</Typography>
-                        <Stack direction="row" justifyContent="space-between">
-                            <Typography>Selected recurring transactions (scaled to {months} months)</Typography>
-                            <Typography>{formatCurrency(recurringExpenses)} total</Typography>
-                        </Stack>
-                    </>
-                )}
-
-                {annualExpenses > 0 && (
-                    <>
-                        <Typography variant="body2" sx={{ fontWeight: 500, mt: 1 }}>Annual Goal Expenses:</Typography>
-                        <Stack direction="row" justifyContent="space-between">
-                            <Typography>Annual savings goal (money set aside for savings)</Typography>
-                            <Typography>{formatCurrency(annualExpenses)} total</Typography>
-                        </Stack>
-                    </>
-                )}
-
-                {monthlyExpenses.length === 0 && categoryBudgetExpenses === 0 && annualExpenses === 0 && recurringExpenses === 0 && (
+                ) : (
                     <Typography>No expenses added.</Typography>
                 )}
 

@@ -39,6 +39,11 @@ const ManageBudgets = ({ onClose }) => {
     const [editingCategory, setEditingCategory] = useState(null);
     const [editForm, setEditForm] = useState({ name: "", weekly_limit: 0, color: "" });
     const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+    // Annual goal editing
+    const [editingAnnualGoal, setEditingAnnualGoal] = useState(false);
+    const [annualGoalInput, setAnnualGoalInput] = useState(0);
+    // Hide/show add category
+    const [showAddCategory, setShowAddCategory] = useState(false);
 
     //category options
     const commonCategories = [
@@ -58,9 +63,30 @@ const ManageBudgets = ({ onClose }) => {
 
     // Calculate annual goal based on sum of monthly limits
     const calculateAnnualGoal = () => {
+        if (typeof annualGoalInput === 'number' && !editingAnnualGoal && annualGoalInput > 0) {
+            return annualGoalInput;
+        }
         return categories.reduce((total, category) => {
             return total + (category.weekly_limit || 0) * 12;
         }, 0);
+    };
+
+    // Save annual goal to backend
+    const handleSaveAnnualGoal = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            await axios.post("http://localhost:8000/budget-goals/", {
+                goal_type: "annual",
+                goal_amount: annualGoalInput,
+            }, {
+                headers: { Authorization: `Bearer ${token}` },
+                withCredentials: true,
+            });
+            setEditingAnnualGoal(false);
+            setSnackbar({ open: true, message: "Annual goal updated!", severity: "success" });
+        } catch (error) {
+            setSnackbar({ open: true, message: "Failed to update annual goal.", severity: "error" });
+        }
     };
 
     // Fetch spending data for categories
@@ -322,12 +348,23 @@ const ManageBudgets = ({ onClose }) => {
                                     <TableCell sx={{ fontWeight: 600, py: 1 }}>Amount Spent (YTD)</TableCell>
                                     <TableCell sx={{ fontWeight: 600, py: 1 }}>Remaining</TableCell>
                                     <TableCell sx={{ fontWeight: 600, py: 1 }}>Categories</TableCell>
+                                    <TableCell sx={{ fontWeight: 600, py: 1 }}>Actions</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
                                 <TableRow>
                                     <TableCell sx={{ py: 1, fontWeight: 500, fontSize: '1.1rem', color: 'primary.main' }}>
-                                        ${calculateAnnualGoal().toLocaleString()}
+                                        {editingAnnualGoal ? (
+                                            <TextField
+                                                type="number"
+                                                value={annualGoalInput}
+                                                onChange={e => setAnnualGoalInput(Number(e.target.value))}
+                                                size="small"
+                                                sx={{ width: 120 }}
+                                            />
+                                        ) : (
+                                            `$${calculateAnnualGoal().toLocaleString()}`
+                                        )}
                                     </TableCell>
                                     <TableCell sx={{ py: 1, fontWeight: 500, fontSize: '1.1rem' }}>
                                         ${annualSpending.toLocaleString()}
@@ -342,6 +379,22 @@ const ManageBudgets = ({ onClose }) => {
                                     </TableCell>
                                     <TableCell sx={{ py: 1 }}>
                                         {categories.length} categories
+                                    </TableCell>
+                                    <TableCell sx={{ py: 1 }}>
+                                        {editingAnnualGoal ? (
+                                            <Stack direction="row" spacing={1}>
+                                                <IconButton onClick={handleSaveAnnualGoal} size="small" sx={{ color: 'success.main' }}>
+                                                    <SaveIcon fontSize="small" />
+                                                </IconButton>
+                                                <IconButton onClick={() => setEditingAnnualGoal(false)} size="small" sx={{ color: 'error.main' }}>
+                                                    <CancelIcon fontSize="small" />
+                                                </IconButton>
+                                            </Stack>
+                                        ) : (
+                                            <IconButton onClick={() => { setEditingAnnualGoal(true); setAnnualGoalInput(calculateAnnualGoal()); }} size="small" sx={{ color: '#2563eb' }}>
+                                                <EditIcon fontSize="small" />
+                                            </IconButton>
+                                        )}
                                     </TableCell>
                                 </TableRow>
                             </TableBody>
@@ -457,54 +510,72 @@ const ManageBudgets = ({ onClose }) => {
                         </Table>
 
                         <Box sx={{ mt: 2, p: 2, backgroundColor: '#f8f9fa', borderRadius: 1 }}>
-                            <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
+                            {/* <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
                                 Add New Category
-                            </Typography>
-                            <form onSubmit={handleAddCategory}>
-                                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="end">
-                                    <FormControl size="small" sx={{ minWidth: 200 }}>
-                                        <InputLabel>Category</InputLabel>
-                                        <Select
-                                            value={newCategory.name}
-                                            label="Category"
+                            </Typography> */}
+                            {!showAddCategory && (
+                                <Button 
+                                    variant="outlined"
+                                    onClick={() => setShowAddCategory(true)}
+                                    sx={{ minWidth: 160 }}
+                                >
+                                    Add Category
+                                </Button>
+                            )}
+                            {showAddCategory && (
+                                <form onSubmit={handleAddCategory}>
+                                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="end">
+                                        <FormControl size="small" sx={{ minWidth: 200 }}>
+                                            <InputLabel>Category</InputLabel>
+                                            <Select
+                                                value={newCategory.name}
+                                                label="Category"
+                                                onChange={(e) =>
+                                                    setNewCategory((prev) => ({ ...prev, name: e.target.value }))
+                                                }
+                                            >
+                                                {commonCategories.map((category) => (
+                                                    <MenuItem key={category} value={category}>
+                                                        {category}
+                                                    </MenuItem>
+                                                ))}
+                                            </Select>
+                                        </FormControl>
+                                        <TextField
+                                            label="Monthly Limit ($)"
+                                            type="number"
+                                            value={newCategory.weekly_limit}
                                             onChange={(e) =>
-                                                setNewCategory((prev) => ({ ...prev, name: e.target.value }))
+                                                setNewCategory((prev) => ({ ...prev, weekly_limit: parseFloat(e.target.value) || 0 }))
                                             }
+                                            size="small"
+                                            sx={{ minWidth: 140 }}
+                                            inputProps={{ step: '0.01', min: '0' }}
+                                        />
+                                        <Button 
+                                            type="submit" 
+                                            variant="contained" 
+                                            disabled={!newCategory.name || newCategory.weekly_limit <= 0}
+                                            sx={{
+                                                backgroundColor: '#2563eb',
+                                                minWidth: 120,
+                                                '&:hover': {
+                                                    backgroundColor: '#1d4ed8'
+                                                }
+                                            }}
                                         >
-                                            {commonCategories.map((category) => (
-                                                <MenuItem key={category} value={category}>
-                                                    {category}
-                                                </MenuItem>
-                                            ))}
-                                        </Select>
-                                    </FormControl>
-                                    <TextField
-                                        label="Monthly Limit ($)"
-                                        type="number"
-                                        value={newCategory.weekly_limit}
-                                        onChange={(e) =>
-                                            setNewCategory((prev) => ({ ...prev, weekly_limit: parseFloat(e.target.value) || 0 }))
-                                        }
-                                        size="small"
-                                        sx={{ minWidth: 140 }}
-                                        inputProps={{ step: '0.01', min: '0' }}
-                                    />
-                                    <Button 
-                                        type="submit" 
-                                        variant="contained" 
-                                        disabled={!newCategory.name || newCategory.weekly_limit <= 0}
-                                        sx={{
-                                            backgroundColor: '#2563eb',
-                                            minWidth: 120,
-                                            '&:hover': {
-                                                backgroundColor: '#1d4ed8'
-                                            }
-                                        }}
-                                    >
-                                        Add Category
-                                    </Button>
-                                </Stack>
-                            </form>
+                                            Add
+                                        </Button>
+                                        <Button
+                                            variant="text"
+                                            onClick={() => setShowAddCategory(false)}
+                                            sx={{ minWidth: 80 }}
+                                        >
+                                            Cancel
+                                        </Button>
+                                    </Stack>
+                                </form>
+                            )}
                         </Box>
                     </>
                 )}
