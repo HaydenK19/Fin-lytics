@@ -23,10 +23,11 @@ app = FastAPI()
 
 origins = [
     "https://localhost:5173",
-    "http://localhost:5173", 
+    "http://localhost:5173",
     "http://127.0.0.1:5173",
     "https://fin-lytics.com",
-    "https://*.railway.app",  # Allow Railway backend domains
+    "https://www.fin-lytics.com",
+    "https://*.railway.app",  # Allow Railway frontend
 ]
 
 app.add_middleware(

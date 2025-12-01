@@ -1,29 +1,41 @@
----
-title: Finlytics AI Stock Predictor
-emoji: 📈
-colorFrom: blue
-colorTo: green
-sdk: gradio
-sdk_version: 4.7.1
-app_file: app.py
-pinned: false
-license: mit
----
+# Finlytics AI Model Service
+# Hugging Face Spaces Deployment
 
-# Finlytics AI Stock Predictor
-
-AI-powered stock price predictions using AutoGluon time series models.
+This space provides stock prediction services for the Finlytics application using AutoGluon time series models.
 
 ## Features
-- 📊 Stock price predictions for 1-30 days ahead
-- 🤖 AutoGluon time series forecasting
-- 📈 Confidence intervals
-- 🎯 Multiple stock symbols support
+- Stock price prediction using AutoGluon
+- RESTful API for integration with Finlytics backend
+- Automatic model loading and caching
+- Health checks and monitoring
+
+## API Endpoints
+
+### Health Check
+```
+GET /health
+```
+
+### Stock Prediction  
+```
+POST /predict
+{
+    "symbol": "AAPL",
+    "periods": 30,
+    "data": [...] // Historical price data
+}
+```
+
+### Model Info
+```
+GET /models
+```
 
 ## Usage
-1. Enter a stock symbol (e.g., AAPL, MSFT, GOOGL)
-2. Select the number of days to predict (1-30)
-3. Get AI-powered price predictions with confidence scores
+This service is automatically called by the Finlytics backend when users request stock predictions.
 
-## API
-You can also use this as an API endpoint for your Finlytics application.
+## Local Development
+```bash
+pip install -r requirements.txt
+python app.py
+```
