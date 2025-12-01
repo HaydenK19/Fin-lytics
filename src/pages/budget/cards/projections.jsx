@@ -27,7 +27,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import CloseIcon from '@mui/icons-material/Close';
 import axios from 'axios';
-import theme from '../../../theme'; // Import centralized theme
+import theme from '../../../theme/theme'; // Import centralized theme
 
 const timeframesInMonths = {
     "3 months": 3,
