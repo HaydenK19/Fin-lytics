@@ -136,7 +136,7 @@ class StockPredictionService:
             cutoff_time = datetime.now() - timedelta(hours=1)
             
             prediction = db.query(Stock_Prediction).filter(
-                Stock_Prediction.symbol == ticker.upper(),
+                Stock_Prediction.ticker == ticker.upper(),
                 Stock_Prediction.created_at > cutoff_time
             ).order_by(Stock_Prediction.created_at.desc()).first()
             
@@ -145,10 +145,10 @@ class StockPredictionService:
             if prediction:
                 logger.info(f"Found cached prediction for {ticker}")
                 return {
-                    "symbol": prediction.symbol,
+                    "symbol": prediction.ticker,
                     "predicted_price": float(prediction.predicted_price),
-                    "confidence_score": float(prediction.confidence_score),
-                    "prediction_date": prediction.prediction_date.isoformat(),
+                    "confidence_low": float(prediction.confidence_low or prediction.predicted_price * 0.9),
+                    "confidence_high": float(prediction.confidence_high or prediction.predicted_price * 1.1),
                     "created_at": prediction.created_at.isoformat(),
                     "cached": True
                 }
@@ -164,10 +164,10 @@ class StockPredictionService:
             db = SessionLocal()
             
             prediction = Stock_Prediction(
-                symbol=ticker.upper(),
+                ticker=ticker.upper(),
                 predicted_price=predicted_price,
-                confidence_score=confidence_score,
-                prediction_date=datetime.now() + timedelta(days=1)  # Next day prediction
+                confidence_low=predicted_price * 0.9,  # Simple confidence bounds
+                confidence_high=predicted_price * 1.1
             )
             
             db.add(prediction)
@@ -248,7 +248,10 @@ async def get_stock_prediction_with_cache(ticker: str, periods: int = 30) -> Dic
 
 def start_prediction_service():
     """Start the prediction service"""
-    prediction_service.start_background_predictions()
+    # Temporarily disabled to prevent 404 errors from Hugging Face
+    # Enable this when you have a working Hugging Face model deployed
+    logger.info("Prediction service disabled until Hugging Face model is deployed")
+    # prediction_service.start_background_predictions()
 
 def stop_prediction_service():
     """Stop the prediction service"""

@@ -11,8 +11,8 @@ class HuggingFaceAIService:
     """Service to interact with Hugging Face Spaces AI model"""
     
     def __init__(self, base_url: str = None):
-        # You'll update this URL once you deploy to Hugging Face
-        self.base_url = base_url or "https://your-username-finlytics-ai.hf.space"
+        # Default to a placeholder URL - will be updated via environment variable
+        self.base_url = base_url or "https://placeholder-ai-service.example.com"
         self.timeout = 60  # seconds
         
     async def health_check(self) -> bool:
