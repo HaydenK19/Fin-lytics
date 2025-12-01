@@ -55,9 +55,16 @@ async def health_check():
 async def root():
     """Root endpoint"""
     return {
-        "message": "Finlytics API is running!",
+        "message": "🎉 Finlytics API is running!",
         "version": "1.0.0",
-        "docs": "/docs"
+        "status": "healthy",
+        "docs": "/docs",
+        "debug_endpoints": [
+            "/health",
+            "/debug/env", 
+            "/debug/config-check"
+        ],
+        "timestamp": "2025-11-30"
     }
 
 # Import and include routes with error handling
@@ -175,6 +182,16 @@ async def debug_env():
             env_vars[key] = value
     
     return {"environment_variables": env_vars}
+
+# Catch-all route for debugging
+@app.get("/test")
+async def test_endpoint():
+    """Simple test endpoint to verify the service is responding"""
+    return {
+        "message": "✅ Backend is responding!",
+        "service": "finlytics-backend",
+        "status": "working"
+    }
 
 @app.get("/debug/config-check")
 async def config_check():
