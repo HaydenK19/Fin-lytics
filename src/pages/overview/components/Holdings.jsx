@@ -15,6 +15,10 @@ import {
 } from '@mui/material';
 
 export default function Holdings({ portfolioId = null }) {
+    function parseTicker(symbol) {
+      const match = symbol && symbol.match(/^([A-Z]{1,5})\d/);
+      return match ? match[1] : symbol;
+    }
   const [holdings, setHoldings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -70,21 +74,24 @@ export default function Holdings({ portfolioId = null }) {
           <TableHead>
             <TableRow>
               <TableCell><strong>Ticker</strong></TableCell>
-              <TableCell><strong>Shares</strong></TableCell>
-              <TableCell><strong>Price</strong></TableCell>
-              <TableCell><strong>Market Value</strong></TableCell>
-              <TableCell><strong>Daily Change ($)</strong></TableCell>
-              <TableCell><strong>Daily Change (%)</strong></TableCell>
+              <TableCell align="right"><strong>Shares</strong></TableCell>
+              <TableCell align="right"><strong>Price</strong></TableCell>
+              <TableCell align="right"><strong>Market Value</strong></TableCell>
+              <TableCell align="right"><strong>Daily Change ($)</strong></TableCell>
+              <TableCell align="right"><strong>Daily Change (%)</strong></TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {holdings.map((h, idx) => (
-              <TableRow key={idx}>
-                <TableCell>{h.symbol || '-'}</TableCell>
-                <TableCell>{h.quantity?.toLocaleString() || 0}</TableCell>
-                <TableCell>${(h.price || 0).toFixed(2)}</TableCell>
-                <TableCell>${(h.value || 0).toLocaleString()}</TableCell>
+              <TableRow key={idx} sx={{ backgroundColor: idx % 2 === 0 ? 'rgba(245,248,255,0.7)' : 'inherit' }}>
+                <TableCell sx={{ fontWeight: 700 }}>
+                  <span title={h.name || h.company || h.symbol}>{parseTicker(h.symbol) || '-'}</span>
+                </TableCell>
+                <TableCell align="right">{h.quantity?.toLocaleString() || 0}</TableCell>
+                <TableCell align="right">${(h.price || 0).toFixed(2)}</TableCell>
+                <TableCell align="right">${(h.value || 0).toLocaleString()}</TableCell>
                 <TableCell
+                  align="right"
                   sx={{
                     color:
                       h.daily_change > 0
@@ -92,12 +99,13 @@ export default function Holdings({ portfolioId = null }) {
                         : h.daily_change < 0
                         ? 'error.main'
                         : 'text.primary',
+                    fontWeight: 600,
                   }}
                 >
-                  {h.daily_change >= 0 ? '+' : ''}
-                  ${h.daily_change?.toFixed(2) || '0.00'}
+                  {h.daily_change >= 0 ? '+' : ''}${h.daily_change?.toFixed(2) || '0.00'}
                 </TableCell>
                 <TableCell
+                  align="right"
                   sx={{
                     color:
                       h.daily_change_percent > 0
@@ -105,10 +113,10 @@ export default function Holdings({ portfolioId = null }) {
                         : h.daily_change_percent < 0
                         ? 'error.main'
                         : 'text.primary',
+                    fontWeight: 600,
                   }}
                 >
-                  {h.daily_change_percent >= 0 ? '+' : ''}
-                  {h.daily_change_percent?.toFixed(2) || '0.00'}%
+                  {h.daily_change_percent >= 0 ? '+' : ''}{h.daily_change_percent?.toFixed(2) || '0.00'}%
                 </TableCell>
               </TableRow>
             ))}
