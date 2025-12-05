@@ -4,11 +4,12 @@ import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import EditIcon from '@mui/icons-material/Edit';
 import CloseIcon from '@mui/icons-material/Close';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import "../../styles/pages/dashboard/budget-page/budget.scss";
 import axios from "axios";
 import VisualCard from "./cards/visual-data.jsx";
 import ProjectionsCard from "./cards/projections.jsx";
-import FinancialCalendar from "../budget/WeeklyOverview.jsx";
+import FinancialCalendar from "./cards/WeeklyOverview.jsx";
 import TransactionCard from "./cards/transactions.jsx";
 import EditTransactions from "./popups/edit-transactions.jsx";
 import ManageBudgets from "./popups/man-budget.jsx";
@@ -355,6 +356,12 @@ const Budget = () => {
   // Function to refresh account balances
   const handleBalanceUpdate = () => {
     setRefreshTrigger(prev => prev + 1);
+  };
+
+  // Define refreshCurrentRange function
+  const refreshCurrentRange = () => {
+    console.log('Refresh triggered');
+    // Add logic to refresh the Financial Calendar or other components
   };
 
   // Listen for budget modal open event from ProjectionsCard

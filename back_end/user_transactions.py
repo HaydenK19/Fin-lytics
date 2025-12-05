@@ -357,9 +357,10 @@ async def get_user_transactions(
                     "account_id": "manual",
                     "amount": t.amount,
                     "currency": "USD",
-                    "category": getattr(t, 'category', None), 
+                    "category": category_name, 
                     "merchant_name": t.description,
                     "date": t.date.isoformat() if t.date else None,
+                    "parent_transaction_id": getattr(t, 'parent_transaction_id', None),
                     "is_user_transaction": True,
                     "is_recurring": getattr(t, 'is_recurring', False),
                     "recurring_enabled": getattr(t, 'recurring_enabled', None),
@@ -726,3 +727,60 @@ async def delete_user_transaction(
         traceback.print_exc()
         db.rollback()
         raise HTTPException(status_code=500, detail="Error deleting transaction")
+
+
+@router.delete('/recurring/{parent_transaction_id}', status_code=status.HTTP_204_NO_CONTENT)
+async def delete_recurring_transaction_and_children(
+    parent_transaction_id: int,
+    user: Annotated[dict, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """
+    Delete a recurring parent transaction and all of its child occurrences for the current user.
+    """
+    try:
+        print(f"[DELETE_RECURRING] Deleting parent {parent_transaction_id} and children for user {user['id']}")
+        from models import User_Transactions, User_Transaction_Category_Link
+
+        # Find parent transaction
+        parent_tx = db.query(User_Transactions).filter(
+            User_Transactions.transaction_id == parent_transaction_id,
+            User_Transactions.user_id == user['id']
+        ).first()
+
+        if not parent_tx:
+            raise HTTPException(status_code=404, detail="Parent recurring transaction not found")
+
+        # Find child transactions that reference this parent
+        children = db.query(User_Transactions).filter(
+            User_Transactions.parent_transaction_id == parent_transaction_id,
+            User_Transactions.user_id == user['id']
+        ).all()
+
+        # Delete category links for children and parent
+        links = db.query(User_Transaction_Category_Link).filter(
+            User_Transaction_Category_Link.transaction_id.in_([parent_transaction_id] + [c.transaction_id for c in children])
+        ).all()
+
+        for link in links:
+            db.delete(link)
+
+        # Delete child transactions
+        for c in children:
+            db.delete(c)
+
+        # Delete parent transaction
+        db.delete(parent_tx)
+
+        db.commit()
+        print(f"[DELETE_RECURRING] Deleted parent and {len(children)} children")
+        return None
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[DELETE_RECURRING] Error deleting recurring transactions: {e}")
+        import traceback
+        traceback.print_exc()
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Error deleting recurring transactions")
