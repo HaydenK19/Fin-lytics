@@ -1,21 +1,29 @@
-fastapi
-uvicorn
-python-jose[cryptography]
-bcrypt==4.1.2
-passlib==1.7.4
-passlib[ypt]
-python-multipart
-sqlalchemy
-plaid-python
-python-dotenv
-pymysql
-requests
-autogluon.timeseries
-pandas
-matplotlib
-numpy
-autogluon
-openpyxl
-tzdata
-stripe
-resend
+# Core FastAPI & Backend Dependencies for Railway (no AI dependencies)
+fastapi>=0.104.1
+uvicorn>=0.24.0
+pydantic>=2.5.0
+
+# Authentication & Security
+python-jose[cryptography]>=3.3.0
+bcrypt>=4.0.1
+passlib[bcrypt]>=1.7.4
+python-multipart>=0.0.6
+
+# Database
+sqlalchemy>=2.0.23
+pymysql>=1.1.0
+
+# External APIs
+plaid-python>=9.1.0
+requests>=2.31.0
+aiohttp>=3.9.0
+stripe>=7.8.0
+
+# Environment & Config
+python-dotenv>=1.0.0
+
+# Email service
+resend>=0.7.0
+
+# Essential utilities only
+python-dateutil>=2.8.0

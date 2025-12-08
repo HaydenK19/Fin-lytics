@@ -1,3 +1,33 @@
+# AI Model Files (NEVER push to GitHub/Railway)
+AI_model/
+AI_model/**
+**/AI_model/
+**/AI_model/**
+AutoGluonModels*/
+**/AutoGluonModels*/
+*.model
+*.pkl
+*.joblib
+
+# HF Deployment folder (separate deployment)
+HF_Deploy/
+HF_Deploy/**
+
+# Large data files that should not be in version control
+*.csv
+!stock_tickers.txt
+*.h5
+*.hdf5
+*.parquet
+
+# ML model artifacts
+models/
+checkpoints/
+*.pt
+*.pth
+*.onnx
+*.tflite
+
 # Logs
 logs
 *.log
@@ -9,7 +39,7 @@ lerna-debug.log*
 
 venv
 node_modules
-dist
+# dist - Keeping for Railway deployment
 dist-ssr
 *.local
 

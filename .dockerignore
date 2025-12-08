@@ -1,0 +1,74 @@
+# AI Model Files (NEVER include in Docker images)
+AI_model/
+AI_model/**
+AutoGluonModels*/
+**/AutoGluonModels*/
+*.model
+*.pkl
+*.joblib
+
+# HF Deployment folder
+HF_Deploy/
+HF_Deploy/**
+
+# Large data files
+*.csv
+!stock_tickers.txt
+*.h5
+*.hdf5
+*.parquet
+
+# ML model artifacts
+models/
+checkpoints/
+*.pt
+*.pth
+*.onnx
+*.tflite
+
+# Development files
+README.md
+*.md
+.git/
+.gitignore
+.env*
+.vscode/
+.idea/
+
+# Logs
+logs/
+*.log
+
+# Node modules and build artifacts
+node_modules/
+.npm/
+dist-ssr/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+venv/
+env/
+.env/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Test files
+*test*
+*Test*
+*TEST*
+debug-*.html

@@ -1,0 +1,54 @@
+# AI Model Files - NEVER deploy to Railway
+AI_model/
+AI_model/**
+AutoGluonModels*/
+**/AutoGluonModels*/
+*.model
+*.pkl
+*.joblib
+
+# Large data files that would cause build failures
+*.csv
+!stock_tickers.txt
+*.h5
+*.hdf5
+*.parquet
+
+# ML model artifacts
+models/
+checkpoints/
+*.pt
+*.pth
+*.onnx
+*.tflite
+
+# Source control and development files
+.git/
+.gitignore
+README.md
+*.md
+.env*
+.vscode/
+.idea/
+
+# Build and cache files that Railway will regenerate
+node_modules/
+.npm/
+__pycache__/
+*.pyc
+venv/
+env/
+
+# Test and debug files
+*test*
+*Test* 
+*TEST*
+debug-*.html
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# HF deployment files (separate service)
+HF_Deploy/
+app.py

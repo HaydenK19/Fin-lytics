@@ -1,0 +1,30 @@
+[phases.setup]
+nixPkgs = ['nodejs_18', 'python311', 'python311Packages.pip']
+
+[phases.cleanup]
+cmds = [
+    'echo "🧹 Cleaning up AI model files for Railway..."',
+    'rm -rf AI_model* || true',
+    'rm -rf HF_Deploy || true', 
+    'rm -rf AutoGluonModels* || true',
+    'rm -rf *.pkl || true',
+    'rm -rf *.model || true',
+    'find . -name "*.csv" -size +5M -delete || true',
+    'find . -name "*.db" -size +10M -delete || true',
+    'echo "✅ Cleanup complete"'
+]
+
+[phases.install]
+cmds = [
+    'npm ci --prefer-offline --no-audit --progress=false',
+    'cd back_end && pip install --break-system-packages --no-cache-dir --disable-pip-version-check -r requirements.txt'
+]
+
+[phases.build]
+cmds = [
+    'npm run build --silent',
+    'rm -rf node_modules/.cache || true'
+]
+
+[start]
+cmd = 'cd back_end && python -m uvicorn fullstack_main:app --host 0.0.0.0 --port $PORT --log-level info'
