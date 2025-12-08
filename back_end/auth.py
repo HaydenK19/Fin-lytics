@@ -21,7 +21,11 @@ SECRET_KEY = os.getenv("JWT_SECRET_KEY", "hello")  # Use environment variable or
 ALGORITHM = "HS256"  # Algorithm for JWT encoding
 ACCESS_TOKEN_EXPIRE_MINUTES = 30  # Access token duration
 
-bcrypt = CryptContext(schemes=["bcrypt"], deprecated="auto")
+bcrypt = CryptContext(
+    schemes=["bcrypt"], 
+    deprecated="auto",
+    bcrypt__truncate_error=False  # Allow longer passwords without error
+)
 oauth2_bearer = OAuth2PasswordBearer(tokenUrl="api/auth/token")
 
 # Pydantic models
@@ -67,13 +71,21 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User with this phone number already exists")
 
         verification_token = generate_verification_token(create_user_request.email)
+        
+        # Hash password with error handling
+        try:
+            hashed_password = bcrypt.hash(create_user_request.password)
+        except Exception as hash_error:
+            print(f"Password hashing error: {hash_error}")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Password processing failed: {str(hash_error)}")
+        
         create_user_model = Users(
             first_name=create_user_request.first_name,
             last_name=create_user_request.last_name,
             email=create_user_request.email,
             username=create_user_request.username,
             phone_number=create_user_request.phone_number,
-            hashed_password=bcrypt.hash(create_user_request.password),
+            hashed_password=hashed_password,
             verification_token=verification_token,
             is_verified=False  # Users must verify their email before logging in
         )
