@@ -253,8 +253,8 @@ route_modules = {
 
 router_status = {}
 router_status["auth"] = include_router_safe(auth_module, "router", "/api/auth", "Authentication")
-router_status["user_info"] = include_router_safe(user_info_module, "router", "/api/user", "User")
-router_status["user_settings"] = include_router_safe(user_settings_module, "router", "/api/settings", "Settings")
+router_status["user_info"] = include_router_safe(user_info_module, "router", "/api", "User")
+router_status["user_settings"] = include_router_safe(user_settings_module, "router", "/api", "Settings")
 router_status["user_categories"] = include_router_safe(user_categories_module, "router", "/api/categories", "Categories")
 router_status["stock_routes"] = include_router_safe(stock_routes_module, "router", "/api/stocks", "Stocks")
 router_status["overview_routes"] = include_router_safe(overview_routes_module, "router", "/api/overview", "Overview")
