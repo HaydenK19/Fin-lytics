@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
+import os
 from fastapi import FastAPI, Depends, HTTPException, status, APIRouter
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -16,7 +17,7 @@ router = APIRouter(
 )
 
 # Configuration
-SECRET_KEY = "hello"  # Key for JWT encoding (replace later)
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "hello")  # Use environment variable or fallback
 ALGORITHM = "HS256"  # Algorithm for JWT encoding
 ACCESS_TOKEN_EXPIRE_MINUTES = 30  # Access token duration
 
