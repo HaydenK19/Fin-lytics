@@ -49,17 +49,15 @@ const Sidebar = ({ setIsAuthenticated }) => {
     if (setIsAuthenticated) {
       try {
         const token = localStorage.getItem("token");
-        const response = await api.get("/");
+        const response = await api.get("/api/user_info/");
 
-        const { first_name, last_name, username, id } = response.data.User;
+        const { first_name, last_name, username, id } = response.data;
         setUser({ firstName: first_name, lastName: last_name, username, id });
       } catch (error) {
-        if (error.response && error.response.status === 401) {
-          console.error("Unauthorized: Redirecting to login.");
-          navigate("/login");
-        } else {
-          console.error("Error fetching user:", error);
-        }
+        console.error("Error fetching user:", error);
+        // Don't redirect or logout on user info fetch failure
+        // Set default user info instead
+        setUser({ firstName: "User", lastName: "", username: "user", id: null });
       }
     } else {
       console.log("Could not get user, user is unauthorized");

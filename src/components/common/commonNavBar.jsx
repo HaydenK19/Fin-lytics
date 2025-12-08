@@ -76,14 +76,25 @@ const DbNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
         }
 
         // --- Fetch User Info ---
-        const res = await api.get("/");
-        const userData = res.data;
-        setUser(userData);
+        try {
+          const res = await api.get("/api/user_info/");
+          const userData = res.data;
+          setUser(userData);
+        } catch (userError) {
+          console.error("Failed to fetch user info:", userError);
+          // Don't fail authentication just because user info failed to load
+        }
 
         // --- Fetch Subscription Status ---
-        const subRes = await api.get("/stripe/subscription/status");
-        const subData = subRes.data;
-        setHasSubscription(subData.has_subscription === true);
+        try {
+          const subRes = await api.get("/stripe/subscription/status");
+          const subData = subRes.data;
+          setHasSubscription(subData.has_subscription === true);
+        } catch (subError) {
+          console.error("Failed to fetch subscription status:", subError);
+          // Default to no subscription if the call fails
+          setHasSubscription(false);
+        }
       } catch (err) {
         console.error("Auth/Subscription fetch error:", err);
       }
