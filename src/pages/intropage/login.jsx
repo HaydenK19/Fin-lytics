@@ -45,13 +45,22 @@ const LoginBlock = ({ isSigningUp: initialSigningUp, setIsAuthenticated }) => {
                 console.log("Sign-up successful:", response.data);
             }
 
-            const loginResponse = await api.post(
-                "/api/auth/token",
-                new URLSearchParams({
+            // Force correct URL for Railway deployment
+            const loginUrl = window.location.hostname === 'fin-lytics.com' 
+                ? "https://fin-lytics.com/api/auth/token" 
+                : "/api/auth/token";
+            
+            console.log("Attempting login to:", loginUrl);
+            
+            const loginResponse = await (window.location.hostname === 'fin-lytics.com' 
+                ? axios.post(loginUrl, new URLSearchParams({
                     username: username,
                     password: password,
-                }),
-                { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+                }), { headers: { "Content-Type": "application/x-www-form-urlencoded" } })
+                : api.post("/api/auth/token", new URLSearchParams({
+                    username: username,
+                    password: password,
+                }), { headers: { "Content-Type": "application/x-www-form-urlencoded" } })
             );
 
             console.log("Login successful:", loginResponse.data);
