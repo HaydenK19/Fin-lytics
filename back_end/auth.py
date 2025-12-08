@@ -215,7 +215,9 @@ async def update_user(user: Annotated[dict, Depends(get_current_user)],
         if update_user_request.phone_number:
             user_model.phone_number = update_user_request.phone_number
         if update_user_request.password:
-            user_model.hashed_password = bcrypt.hash(update_user_request.password) 
+            password_bytes = update_user_request.password.encode('utf-8')[:72]
+            password_for_hashing = password_bytes.decode('utf-8')
+            user_model.hashed_password = bcrypt.hash(password_for_hashing) 
 
         db.commit()
         return{"message": "User updated successfully"}
@@ -282,4 +284,6 @@ async def resend_verification(resend_request: ResendVerificationRequest, db: db_
         raise HTTPException(status_code=500, detail="Failed to send verification email")
 
 def hashPassword(password: str):
-    return bcrypt.hash(password);
+    password_bytes = password.encode('utf-8')[:72]
+    password_for_hashing = password_bytes.decode('utf-8')
+    return bcrypt.hash(password_for_hashing);
