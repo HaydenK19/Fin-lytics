@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import api from '../../../api';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -35,10 +36,7 @@ const VisualCard = () => {
             const payload = JSON.parse(atob(token.split('.')[1]));
             const userId = payload.id;
             
-            const response = await axios.get(`http://localhost:8000/user_categories/${userId}`, {
-                headers: { Authorization: `Bearer ${token}` },
-                withCredentials: true,
-            });
+            const response = await api.get(`/user_categories/${userId}`);
             
             const colorMap = {};
             response.data.forEach(category => {
@@ -63,7 +61,7 @@ const VisualCard = () => {
         // fetch category colors first, then pie chart data
         const colors = await fetchCategoryColors();
         
-        axios.get(`http://localhost:8000/pie_chart/${userId}`)
+        api.get(`/pie_chart/${userId}`)
             .then((response) => {
                 const data = response.data;
 
@@ -137,7 +135,7 @@ const VisualCard = () => {
     //     if (!token) return;
 
     //     try {
-    //         await axios.post("http://localhost:8000/refresh_bank_data", {}, {
+    //         await api.post("/refresh_bank_data", {
     //             headers: { Authorization: `Bearer ${token}` }
     //         });
     //         // refresh pie chart data after bank data refresh

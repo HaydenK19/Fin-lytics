@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 // import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 // import { faCircleUser, faAngleDown } from "@fortawesome/free-solid-svg-icons";
 import axios from "axios";
+import api from "../../api";
 // import miniLogo from "../../assets/miniLogo.png";
 
 // importing modal content
@@ -30,11 +31,7 @@ const Sidebar = ({ setIsAuthenticated }) => {
         if (setIsAuthenticated) {
             try {
                 const token = localStorage.getItem("token");
-                const response = await axios.get("http://localhost:8000/", {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                });
+                const response = await api.get("/");
 
                 const { first_name, last_name, username, id } = response.data.User;
                 setUser({ firstName: first_name, lastName: last_name, username, id });

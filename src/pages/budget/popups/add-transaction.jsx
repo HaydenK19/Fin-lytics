@@ -3,6 +3,7 @@ import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, B
 import CloseIcon from '@mui/icons-material/Close';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
+import api from '../../../api';
 export default function AddTransactionDialog({ open, onClose, defaultDate, onCreated, initialData = null, isEdit = false, onSubmit = null }) {
   // Category color state and fetch logic (copied from WeeklyOverview.jsx)
   const [categoryColors, setCategoryColors] = useState({});
@@ -15,10 +16,7 @@ export default function AddTransactionDialog({ open, onClose, defaultDate, onCre
       if (!token) return;
       const payload = JSON.parse(atob(token.split('.')[1]));
       const userId = payload.id;
-      const response = await axios.get(`http://localhost:8000/user_categories/${userId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        withCredentials: true,
-      });
+      const response = await api.get(`/user_categories/${userId}`);
       const colorMap = {};
       response.data.forEach(category => {
         if (category.name) {
@@ -135,10 +133,7 @@ export default function AddTransactionDialog({ open, onClose, defaultDate, onCre
       if (onSubmit) {
         await onSubmit(payload);
       } else {
-        const resp = await axios.post('http://localhost:8000/user_transactions/', payload, {
-          headers: { Authorization: `Bearer ${token}` },
-          withCredentials: true,
-        });
+        const resp = await api.post('/user_transactions/', payload);
         if (onCreated) onCreated(payload);
       }
       setLoading(false);

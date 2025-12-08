@@ -17,6 +17,7 @@ import SymbolOverviewChart from "../../components/common/tradingview/SymbolOverv
 import SearchBar from "../../components/common/SearchBar";
 import StockInfoPanel from "./components/StockInfoPanel";
 import Stock from "./stock";
+import api from "../../api";
 
 function StockInsights() {
     const { ticker } = useParams();
@@ -33,10 +34,8 @@ function StockInsights() {
 
     async function fetchResolvedSymbol() {
         try {
-            const res = await fetch(`http://localhost:8000/stocks/symbol/${ticker}`);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const data = await res.json();
-            setResolvedSymbol(data.symbol);
+            const res = await api.get(`/stocks/symbol/${ticker}`);
+            setResolvedSymbol(res.data.symbol);
         } catch (err) {
             console.error("Failed to resolve symbol:", err);
             setResolvedSymbol(`NASDAQ:${ticker}`); // fallback
@@ -65,20 +64,12 @@ function StockInsights() {
         }
       }
 
-      const res = await fetch(
-        "http://localhost:8000/stocks/predictions/generate-intervals",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-          body: JSON.stringify({ tickers: [ticker] }),
-        }
+      const res = await api.post(
+        "/stocks/predictions/generate-intervals",
+        { tickers: [ticker] }
       );
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = res.data;
 
       const intervalOrder = ["5m", "15m", "30m", "60m", "1d"];
       const preds =

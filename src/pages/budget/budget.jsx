@@ -59,10 +59,7 @@ const MyAccounts = ({ refreshTrigger = 0 }) => {
       try {
         const token = localStorage.getItem("token");
         
-        const response = await axios.get("http://localhost:8000/user_balances/", {
-          headers: { Authorization: `Bearer ${token}` },
-          withCredentials: true,
-        });
+        const response = await api.get("/user_balances/");
 
         const data = response.data;
         console.log("Unified balance response:", data);
@@ -167,7 +164,7 @@ const EditAccountsModal = ({ open, onClose, userPlaidStatus, currentBalances }) 
       // Use the new manual balance update endpoint
       for (const update of updates) {
         await axios.put(
-          "http://localhost:8000/user_balances/manual_balance_update/",
+          "/user_balances/manual_balance_update/",
           update,
           {
             headers: { Authorization: `Bearer ${token}` },

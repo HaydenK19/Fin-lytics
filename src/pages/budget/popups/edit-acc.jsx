@@ -23,6 +23,7 @@ import {
     Savings as SavingsIcon,
     AttachMoney as AttachMoneyIcon,
 } from '@mui/icons-material';
+import api from '../../../api';
 
 const EditAccounts = ({ open, onClose, onBalanceUpdate }) => {
     const [balances, setBalances] = useState({
@@ -49,38 +50,25 @@ const EditAccounts = ({ open, onClose, onBalanceUpdate }) => {
     // Fetch initial balance data
     const fetchBalances = async () => {
         try {
-            const response = await fetch('http://localhost:8000/user_balances/', {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                    'Content-Type': 'application/json',
-                },
+            const response = await api.get('/user_balances/');
+            const data = response.data;
+            console.log('Fetched balance data:', data);
+            
+            setBalances({
+                checking: data.manual_balances?.checking || 0,
+                savings: data.manual_balances?.savings || 0,
+                cash: data.cash_balance || 0,  
+            });
+            console.log('Updated UI balances:', {
+                checking: data.manual_balances?.checking || 0,
+                savings: data.manual_balances?.savings || 0,
+                cash: data.cash_balance || 0,
             });
 
-            if (response.ok) {
-                const data = await response.json();
-                console.log('Fetched balance data:', data);
-                
-                setBalances({
-                    checking: data.manual_balances?.checking || 0,
-                    savings: data.manual_balances?.savings || 0,
-                    cash: data.cash_balance || 0,  
-                });
-                console.log('Updated UI balances:', {
-                    checking: data.manual_balances?.checking || 0,
-                    savings: data.manual_balances?.savings || 0,
-                    cash: data.cash_balance || 0,
-                });
-
-                setUserPlaidStatus({
-                    hasPlaid: data.has_plaid || false,
-                    balancesEditable: data.balances_editable || false
-                });
-            } else if (response.status === 401) {
-                console.error('Authentication failed - user not logged in');
-            } else {
-                console.error('Failed to fetch balances - status:', response.status);
-            }
+            setUserPlaidStatus({
+                hasPlaid: data.has_plaid || false,
+                balancesEditable: data.balances_editable || false
+            });
         } catch (error) {
             console.error('Error fetching balances:', error);
         }
@@ -95,33 +83,20 @@ const EditAccounts = ({ open, onClose, onBalanceUpdate }) => {
     // Handle updating checking account
     const handleCheckingUpdate = async () => {
         try {
-            const response = await fetch('http://localhost:8000/user_balances/manual_balance_update/', {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    balance_name: 'checking',
-                    new_amount: checkingInput
-                }),
+            const response = await api.put('/user_balances/manual_balance_update/', {
+                balance_name: 'checking',
+                new_amount: checkingInput
             });
 
-            if (response.ok) {
-                const result = await response.json();
-                console.log('Checking balance update result:', result);
-                setBalances(prev => ({ ...prev, checking: checkingInput }));
-                setIsEditingChecking(false);
-                console.log('Checking balance updated successfully');
-                // Refresh balance data from backend to ensure consistency
-                await fetchBalances();
-                // Notify parent component to refresh
-                if (onBalanceUpdate) onBalanceUpdate();
-            } else {
-                console.error('Failed to update checking balance - status:', response.status);
-                const errorData = await response.text();
-                console.error('Error details:', errorData);
-            }
+            const result = response.data;
+            console.log('Checking balance update result:', result);
+            setBalances(prev => ({ ...prev, checking: checkingInput }));
+            setIsEditingChecking(false);
+            console.log('Checking balance updated successfully');
+            // Refresh balance data from backend to ensure consistency
+            await fetchBalances();
+            // Notify parent component to refresh
+            if (onBalanceUpdate) onBalanceUpdate();
         } catch (error) {
             console.error('Error updating checking balance:', error);
         }
@@ -130,33 +105,20 @@ const EditAccounts = ({ open, onClose, onBalanceUpdate }) => {
     // Handle updating savings account
     const handleSavingsUpdate = async () => {
         try {
-            const response = await fetch('http://localhost:8000/user_balances/manual_balance_update/', {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    balance_name: 'savings',
-                    new_amount: savingsInput
-                }),
+            const response = await api.put('/user_balances/manual_balance_update/', {
+                balance_name: 'savings',
+                new_amount: savingsInput
             });
 
-            if (response.ok) {
-                const result = await response.json();
-                console.log('Savings balance update result:', result);
-                setBalances(prev => ({ ...prev, savings: savingsInput }));
-                setIsEditingSavings(false);
-                console.log('Savings balance updated successfully');
-                // Refresh balance data from backend to ensure consistency
-                await fetchBalances();
-                // Notify parent component to refresh
-                if (onBalanceUpdate) onBalanceUpdate();
-            } else {
-                console.error('Failed to update savings balance - status:', response.status);
-                const errorData = await response.text();
-                console.error('Error details:', errorData);
-            }
+            const result = response.data;
+            console.log('Savings balance update result:', result);
+            setBalances(prev => ({ ...prev, savings: savingsInput }));
+            setIsEditingSavings(false);
+            console.log('Savings balance updated successfully');
+            // Refresh balance data from backend to ensure consistency
+            await fetchBalances();
+            // Notify parent component to refresh
+            if (onBalanceUpdate) onBalanceUpdate();
         } catch (error) {
             console.error('Error updating savings balance:', error);
         }
@@ -165,33 +127,20 @@ const EditAccounts = ({ open, onClose, onBalanceUpdate }) => {
     // Handle updating cash
     const handleCashUpdate = async () => {
         try {
-            const response = await fetch('http://localhost:8000/user_balances/manual_balance_update/', {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    balance_name: 'cash',
-                    new_amount: cashInput
-                }),
+            const response = await api.put('/user_balances/manual_balance_update/', {
+                balance_name: 'cash',
+                new_amount: cashInput
             });
 
-            if (response.ok) {
-                const result = await response.json();
-                console.log('Cash balance update result:', result);
-                setBalances(prev => ({ ...prev, cash: cashInput }));
-                setIsEditingCash(false);
-                console.log('Cash balance updated successfully');
-                // Refresh balance data from backend to ensure consistency
-                await fetchBalances();
-                // Notify parent component to refresh
-                if (onBalanceUpdate) onBalanceUpdate();
-            } else {
-                console.error('Failed to update cash balance - status:', response.status);
-                const errorData = await response.text();
-                console.error('Error details:', errorData);
-            }
+            const result = response.data;
+            console.log('Cash balance update result:', result);
+            setBalances(prev => ({ ...prev, cash: cashInput }));
+            setIsEditingCash(false);
+            console.log('Cash balance updated successfully');
+            // Refresh balance data from backend to ensure consistency
+            await fetchBalances();
+            // Notify parent component to refresh
+            if (onBalanceUpdate) onBalanceUpdate();
         } catch (error) {
             console.error('Error updating cash balance:', error);
         }

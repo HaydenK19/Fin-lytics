@@ -29,10 +29,7 @@ const TransactionCard = () => {
             const payload = JSON.parse(atob(token.split('.')[1]));
             const userId = payload.id;
             
-            const response = await axios.get(`http://localhost:8000/user_categories/${userId}`, {
-                headers: { Authorization: `Bearer ${token}` },
-                withCredentials: true,
-            });
+            const response = await api.get(`/user_categories/${userId}`);
             
             const colorMap = {};
             response.data.forEach(category => {
@@ -76,10 +73,7 @@ const TransactionCard = () => {
         const fetchTransactions = async () => {
             try {
                 const token = localStorage.getItem("token");
-                const response = await axios.get("http://localhost:8000/user_transactions/", {
-                    headers: { Authorization: `Bearer ${token}` },
-                    withCredentials: true,
-                });
+                const response = await api.get("/user_transactions/");
 
                 // Combine all transaction sources
                 const allTransactions = [

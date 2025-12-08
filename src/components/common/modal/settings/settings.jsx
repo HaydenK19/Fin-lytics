@@ -49,7 +49,7 @@ const SettingsBlock = () => {
     const checkPlaidStatus = async () => {
       try {
         const token = localStorage.getItem("token");
-        await api.get("http://localhost:8000/accounts/", {
+        await api.get("/accounts/", {
           headers: { Authorization: `Bearer ${token}` },
           withCredentials: true,
         });
@@ -68,7 +68,7 @@ const SettingsBlock = () => {
       try {
         const token = localStorage.getItem("token");
         const response = await axios.post(
-          "http://localhost:8000/create_link_token/",
+          "/create_link_token/",
           {},
           {
             headers: { Authorization: `Bearer ${token}` },
@@ -88,7 +88,7 @@ const SettingsBlock = () => {
       try {
         const token = localStorage.getItem("token");
         const response = await axios.get(
-          "http://localhost:8000/user_settings/", // change made by Thomas Pearson
+          "/user_settings/", // change made by Thomas Pearson
           {
             headers: { Authorization: `Bearer ${token}` },
             withCredentials: true,
@@ -105,7 +105,7 @@ const SettingsBlock = () => {
       try {
         const token = localStorage.getItem("token");
         const response = await axios.get(
-          "http://localhost:8000/user_info/",
+          "/user_info/",
           {
             headers: { Authorization: `Bearer ${token}` },
             withCredentials: true,
@@ -151,7 +151,7 @@ const SettingsBlock = () => {
     try {
       const token = localStorage.getItem("token");
       await axios.post(
-        "http://localhost:8000/exchange_public_token/",
+        "/exchange_public_token/",
         { 
           public_token: publicToken,
           account_type: "bank"
@@ -166,7 +166,7 @@ const SettingsBlock = () => {
       // Fetch investment data after successful Plaid connection
       try {
         await axios.get(
-          "http://localhost:8000/investments/",
+          "/investments/",
           {
             headers: { Authorization: `Bearer ${token}` },
             withCredentials: true,

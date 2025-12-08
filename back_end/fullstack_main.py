@@ -199,6 +199,25 @@ async def debug_user(username: str, db: Session = Depends(get_db)):
     except Exception as e:
         return {"status": "error", "message": f"User check error: {str(e)}"}
 
+@app.post("/api/debug/auth/{username}")
+async def debug_auth(username: str, password: str, db: Session = Depends(get_db)):
+    """Debug endpoint to test authentication without going through OAuth2"""
+    try:
+        if not auth_module:
+            return {"error": "Auth module not loaded"}
+        
+        from auth import authenticate_user
+        result = authenticate_user(username, password, db)
+        
+        return {
+            "username": username,
+            "auth_result": str(result),
+            "auth_result_type": type(result).__name__,
+            "is_user_object": hasattr(result, 'username') if result else False
+        }
+    except Exception as e:
+        return {"error": f"Debug auth failed: {str(e)}"}
+
 # Include API routes with error handling
 def include_router_safe(module, router_name, prefix, tag):
     try:

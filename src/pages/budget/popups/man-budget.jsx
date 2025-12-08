@@ -28,6 +28,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import CancelIcon from '@mui/icons-material/Cancel';
 import axios from "axios";
+import api from '../../../api';
 
 const ManageBudgets = ({ onClose }) => {
     const [categories, setCategories] = useState([]);
@@ -75,7 +76,7 @@ const ManageBudgets = ({ onClose }) => {
     const handleSaveAnnualGoal = async () => {
         try {
             const token = localStorage.getItem("token");
-            await axios.post("http://localhost:8000/budget-goals/", {
+            await api.post("/budget-goals/", {
                 goal_type: "annual",
                 goal_amount: annualGoalInput,
             }, {
@@ -99,17 +100,13 @@ const ManageBudgets = ({ onClose }) => {
             
             // Make both API calls in parallel for faster loading
             const [yearResponse, monthResponse] = await Promise.all([
-                axios.get("http://localhost:8000/user_transactions/", {
-                    headers: { Authorization: `Bearer ${token}` },
-                    withCredentials: true,
+                api.get("/user_transactions/", {
                     params: {
                         start_date: startOfYear.toISOString().split('T')[0],
                         end_date: currentDate.toISOString().split('T')[0]
                     }
                 }),
-                axios.get("http://localhost:8000/user_transactions/", {
-                    headers: { Authorization: `Bearer ${token}` },
-                    withCredentials: true,
+                api.get("/user_transactions/", {
                     params: {
                         start_date: startOfMonth.toISOString().split('T')[0],
                         end_date: currentDate.toISOString().split('T')[0]
@@ -212,10 +209,7 @@ const ManageBudgets = ({ onClose }) => {
 
             setUserId(currentUserId);
 
-            const response = await axios.get("http://localhost:8000/user_categories/", {
-                headers: { Authorization: `Bearer ${token}` },
-                withCredentials: true,
-            });
+            const response = await api.get("/user_categories/");
 
             setCategories(response.data);
             
@@ -239,7 +233,7 @@ const ManageBudgets = ({ onClose }) => {
 
         try {
             const token = localStorage.getItem("token");
-            const response = await axios.post("http://localhost:8000/user_categories/", {
+            const response = await api.post("/user_categories/", {
                 name: newCategory.name,
                 color: "#4CAF50",
                 weekly_limit: newCategory.weekly_limit
@@ -260,10 +254,7 @@ const ManageBudgets = ({ onClose }) => {
     const handleUpdateCategory = async (categoryId, updatedData) => {
         try {
             const token = localStorage.getItem("token");
-            await axios.put(`http://localhost:8000/user_categories/${categoryId}`, updatedData, {
-                headers: { Authorization: `Bearer ${token}` },
-                withCredentials: true,
-            });
+            await api.put(`/user_categories/${categoryId}`, updatedData);
 
             await fetchUserCategories();
             

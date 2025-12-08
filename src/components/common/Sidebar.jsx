@@ -21,6 +21,7 @@ import {
 } from "@mui/icons-material";
 import { styled } from "@mui/system";
 import axios from "axios";
+import api from '../../api';
 
 const StyledListItem = styled(ListItem)(({ theme }) => ({
   color: "white",
@@ -48,11 +49,7 @@ const Sidebar = ({ setIsAuthenticated }) => {
     if (setIsAuthenticated) {
       try {
         const token = localStorage.getItem("token");
-        const response = await axios.get("http://localhost:8000/", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await api.get("/");
 
         const { first_name, last_name, username, id } = response.data.User;
         setUser({ firstName: first_name, lastName: last_name, username, id });

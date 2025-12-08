@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import api from '../../../api';
 import {
   Paper,
   Box,
@@ -27,7 +28,7 @@ export default function Holdings({ portfolioId = null }) {
     const fetchHoldings = async () => {
       try {
         const token = localStorage.getItem('token');
-        const url = portfolioId ? `http://localhost:8000/investments/holdings?portfolio_id=${encodeURIComponent(portfolioId)}` : 'http://localhost:8000/investments/holdings';
+        const url = portfolioId ? `/investments/holdings?portfolio_id=${encodeURIComponent(portfolioId)}` : '/investments/holdings';
         const res = await axios.get(url, {
           headers: { Authorization: `Bearer ${token}` },
         });

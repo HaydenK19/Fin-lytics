@@ -7,6 +7,7 @@ import TopMovers from './components/TopMovers';
 import MarketOverview from './components/MarketOverview';
 import News from './components/News';
 import axios from 'axios';
+import api from '../../api';
 
 export default function Overview() {
   const [overviewData, setOverviewData] = useState(null);
@@ -18,7 +19,7 @@ export default function Overview() {
     const fetchOverview = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get('http://localhost:8000/overview', {
+        const res = await api.get('/overview', {
           headers: { Authorization: `Bearer ${token}` },
         });
         setOverviewData(res.data);

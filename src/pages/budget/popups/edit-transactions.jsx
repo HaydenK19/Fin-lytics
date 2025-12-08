@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import api from '../../../api';
 import CircularProgress from '@mui/material/CircularProgress';
 import {
     Dialog,
@@ -44,10 +45,7 @@ const EditTransactions = ({ onClose }) => {
             if (!token) return;
             const payload = JSON.parse(atob(token.split('.')[1]));
             const userId = payload.id;
-            const response = await axios.get(`http://localhost:8000/user_categories/${userId}`, {
-                headers: { Authorization: `Bearer ${token}` },
-                withCredentials: true,
-            });
+            const response = await api.get(`/user_categories/${userId}`);
             const colorMap = {};
             response.data.forEach(category => {
                 if (category.name) {
@@ -136,7 +134,7 @@ const EditTransactions = ({ onClose }) => {
             let sendPayload;
             if (child.source === 'user') {
                 const numericId = child.transaction_id.replace('user-', '');
-                endpoint = `http://localhost:8000/user_transactions/${numericId}`;
+                endpoint = `/user_transactions/${numericId}`;
                 sendPayload = {
                     amount: payload.amount,
                     merchant_name: payload.merchant_name,
@@ -144,7 +142,7 @@ const EditTransactions = ({ onClose }) => {
                     date: payload.date
                 };
             } else if (child.source === 'database') {
-                endpoint = `http://localhost:8000/entered_transactions/${child.transaction_id}`;
+                endpoint = `/entered_transactions/${child.transaction_id}`;
                 sendPayload = {
                     date: payload.date,
                     amount: payload.amount,
@@ -219,10 +217,7 @@ const EditTransactions = ({ onClose }) => {
             try {
                 setLoading(true);
                 const token = localStorage.getItem("token");
-                const response = await axios.get("http://localhost:8000/user_transactions/", {
-                    headers: { Authorization: `Bearer ${token}` },
-                    withCredentials: true,
-                });
+                const response = await api.get("/user_transactions/");
 
                 // Combine all transaction types from the backend response
                 const { plaid_transactions = [], db_transactions = [], user_transactions = [] } = response.data;
@@ -321,7 +316,7 @@ const EditTransactions = ({ onClose }) => {
             if (transaction.source === 'user') {
                 // Extract numeric ID from "user-14" format
                 const numericId = transactionId.replace('user-', '');
-                endpoint = `http://localhost:8000/user_transactions/${numericId}`;
+                endpoint = `/user_transactions/${numericId}`;
                 payload = {
                     amount: updatedTransaction.amount,
                     merchant_name: updatedTransaction.merchant_name,
@@ -329,7 +324,7 @@ const EditTransactions = ({ onClose }) => {
                     date: updatedTransaction.date
                 };
             } else if (transaction.source === 'database') {
-                endpoint = `http://localhost:8000/entered_transactions/${transactionId}`;
+                endpoint = `/entered_transactions/${transactionId}`;
                 payload = {
                     date: updatedTransaction.date,
                     amount: updatedTransaction.amount,
@@ -341,10 +336,7 @@ const EditTransactions = ({ onClose }) => {
                 return;
             }
 
-            await axios.put(endpoint, payload, {
-                headers: { Authorization: `Bearer ${token}` },
-                withCredentials: true,
-            });
+            await api.put(endpoint, payload);
 
             // Update the local state
             setTransactions(prev => prev.map(t => 
@@ -384,7 +376,7 @@ const EditTransactions = ({ onClose }) => {
                     // parent_transaction_id should be numeric; transaction.transaction_id is like 'user-123'
                     if (transaction.source === 'user') {
                         const numericId = transaction.transaction_id.replace('user-', '');
-                        endpoint = `http://localhost:8000/user_transactions/recurring/${numericId}`;
+                        endpoint = `/user_transactions/recurring/${numericId}`;
                     } else {
                         alert("Only user-created recurring parents can be deleted in bulk.");
                         return;
@@ -393,19 +385,16 @@ const EditTransactions = ({ onClose }) => {
                     if (transaction.source === 'user') {
                         // Extract numeric ID from "user-14" format
                         const numericId = transaction.transaction_id.replace('user-', '');
-                        endpoint = `http://localhost:8000/user_transactions/${numericId}`;
+                        endpoint = `/user_transactions/${numericId}`;
                     } else if (transaction.source === 'database') {
-                        endpoint = `http://localhost:8000/entered_transactions/${transactionId}`;
+                        endpoint = `/entered_transactions/${transactionId}`;
                     } else {
                         alert("This transaction cannot be deleted");
                         return;
                     }
                 }
 
-                await axios.delete(endpoint, {
-                    headers: { Authorization: `Bearer ${token}` },
-                    withCredentials: true,
-                });
+                await api.delete(endpoint);
 
                 // Remove from local state
                 if (isParent) {
@@ -442,7 +431,7 @@ const EditTransactions = ({ onClose }) => {
             let sendPayload;
             if (transaction.source === 'user') {
                 const numericId = transaction.transaction_id.replace('user-', '');
-                endpoint = `http://localhost:8000/user_transactions/${numericId}`;
+                endpoint = `/user_transactions/${numericId}`;
                 sendPayload = {
                     amount: payload.amount,
                     merchant_name: payload.merchant_name,
@@ -450,7 +439,7 @@ const EditTransactions = ({ onClose }) => {
                     date: payload.date
                 };
             } else if (transaction.source === 'database') {
-                endpoint = `http://localhost:8000/entered_transactions/${transaction.transaction_id}`;
+                endpoint = `/entered_transactions/${transaction.transaction_id}`;
                 sendPayload = {
                     date: payload.date,
                     amount: payload.amount,
@@ -721,10 +710,7 @@ const EditTransactions = ({ onClose }) => {
                             // Refresh all transactions after adding a new one
                             try {
                                 const token = localStorage.getItem("token");
-                                const response = await axios.get("http://localhost:8000/user_transactions/", {
-                                    headers: { Authorization: `Bearer ${token}` },
-                                    withCredentials: true,
-                                });
+                                const response = await api.get("/user_transactions/");
 
                                 const { plaid_transactions = [], db_transactions = [], user_transactions = [] } = response.data;
                                 

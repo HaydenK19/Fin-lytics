@@ -46,15 +46,11 @@ export default function SearchBar({ placeholder = "Search Stocks..." }) {
       try {
         setLoading(true);
         // Call backend API endpoint
-        const res = await fetch(
-          `http://localhost:8000/stocks/search?query=${encodeURIComponent(debouncedQuery)}&limit=10`
+        const res = await api.get(
+          `/stocks/search?query=${encodeURIComponent(debouncedQuery)}&limit=10`
         );
         
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        }
-        
-        const data = await res.json();
+        const data = res.data;
 
         // Backend already formats the data correctly
         const results = Array.isArray(data) ? data : [];

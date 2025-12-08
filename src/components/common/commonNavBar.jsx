@@ -43,7 +43,7 @@ const DbNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
       if (!token) return navigate("/login");
 
       const res = await fetch(
-        "http://localhost:8000/stripe/create-checkout-session",
+        "/stripe/create-checkout-session",
         {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
@@ -76,30 +76,14 @@ const DbNavbar = ({ isAuthenticated, setIsAuthenticated }) => {
         }
 
         // --- Fetch User Info ---
-        const res = await fetch("http://localhost:8000/", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (!res.ok) {
-          navigate("/login");
-          return;
-        }
-
-        const userData = await res.json();
+        const res = await api.get("/");
+        const userData = res.data;
         setUser(userData);
 
         // --- Fetch Subscription Status ---
-        const subRes = await fetch(
-          "http://localhost:8000/stripe/subscription/status",
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-
-        if (subRes.ok) {
-          const subData = await subRes.json();
-          setHasSubscription(subData.has_subscription === true);
-        }
+        const subRes = await api.get("/stripe/subscription/status");
+        const subData = subRes.data;
+        setHasSubscription(subData.has_subscription === true);
       } catch (err) {
         console.error("Auth/Subscription fetch error:", err);
       }

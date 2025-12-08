@@ -131,13 +131,7 @@ const ProjectionsCard = () => {
         try {
             setLoadingCategories(true);
             const token = localStorage.getItem('token');
-            const response = await axios.get('http://localhost:8000/user_categories/', {
-                headers: { Authorization: `Bearer ${token}` },
-                withCredentials: true,
-            });
-            setCategories(response.data);
-        } catch (error) {
-            console.error('Error fetching categories:', error);
+            const response = await api.get('/user_transactions/');sole.error('Error fetching categories:', error);
         } finally {
             setLoadingCategories(false);
         }
@@ -148,9 +142,7 @@ const ProjectionsCard = () => {
             setLoadingTransactions(true);
             const token = localStorage.getItem('token');
             
-            const response = await axios.get('http://localhost:8000/user_transactions/', {
-                headers: { Authorization: `Bearer ${token}` },
-                withCredentials: true,
+            const response = await api.get('/user_transactions/', {
                 params: { 
                     recurring_only: true 
                 }
@@ -820,10 +812,7 @@ const RecurringTransactionWidget = ({ onSuccess }) => {
                 end_date: formData.end_date || null
             };
 
-            await axios.post('http://localhost:8000/user_transactions/', payload, {
-                headers: { Authorization: `Bearer ${token}` },
-                withCredentials: true,
-            });
+            await api.post('/user_transactions/', payload);
 
             setMessage({ text: 'Recurring transaction created successfully!', type: 'success' });
             

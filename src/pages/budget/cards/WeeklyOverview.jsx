@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 // Removed duplicate Dialog imports; use those from main MUI import
 import axios from 'axios';
+import api from '../../../api';
 import { Box, Grid, Paper, Typography, IconButton, Button, List, ListItem, ListItemText, Divider, Drawer, ToggleButton, ToggleButtonGroup, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Select, MenuItem, FormControl, InputLabel, Chip, CircularProgress, Snackbar, Alert } from '@mui/material';
 import AddTransactionDialog from '../popups/add-transaction';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
@@ -78,7 +79,7 @@ export default function FinancialCalendar() {
       const payload = JSON.parse(atob(token.split('.')[1]));
       const userId = payload.id;
       
-      const response = await axios.get(`http://localhost:8000/user_categories/${userId}`, {
+      const response = await api.get(`/user_categories/${userId}`, {
         headers: { Authorization: `Bearer ${token}` },
         withCredentials: true,
       });
@@ -130,7 +131,7 @@ export default function FinancialCalendar() {
     }
     try {
       const token = localStorage.getItem('token');
-      const resp = await axios.get(`http://localhost:8000/user_transactions/?start_date=${formatISO(start)}&end_date=${formatISO(end)}`, {
+      const resp = await api.get(`/user_transactions/?start_date=${formatISO(start)}&end_date=${formatISO(end)}`, {
         headers: { Authorization: `Bearer ${token}` },
         withCredentials: true,
       });
@@ -171,7 +172,7 @@ export default function FinancialCalendar() {
     const in30 = addDays(today, 30);
     try {
       const token = localStorage.getItem('token');
-      const resp = await axios.get(`http://localhost:8000/user_transactions/?start_date=${formatISO(today)}&end_date=${formatISO(in30)}`, {
+      const resp = await api.get(`/user_transactions/?start_date=${formatISO(today)}&end_date=${formatISO(in30)}`, {
         headers: { Authorization: `Bearer ${token}` },
         withCredentials: true,
       });
@@ -217,10 +218,7 @@ export default function FinancialCalendar() {
     (async () => {
       try {
         const token = localStorage.getItem('token');
-        const resp = await axios.get(`http://localhost:8000/user_transactions/?start_date=${formatISO(today)}&end_date=${formatISO(in30)}`, {
-          headers: { Authorization: `Bearer ${token}` },
-          withCredentials: true,
-        });
+        const resp = await api.get(`/user_transactions/?start_date=${formatISO(today)}&end_date=${formatISO(in30)}`);
         const all = [ 
           ...(resp.data.db_transactions || []), 
           ...(resp.data.plaid_transactions || []),
@@ -786,7 +784,7 @@ export default function FinancialCalendar() {
             setActionLoading(true);
             if (confirmDialog.action === 'add') {
               const token = localStorage.getItem('token');
-              await axios.post('http://localhost:8000/user_transactions/', confirmDialog.tx, {
+              await api.post('/user_transactions/', confirmDialog.tx, {
                 headers: { Authorization: `Bearer ${token}` },
                 withCredentials: true,
               });
@@ -811,7 +809,7 @@ export default function FinancialCalendar() {
               console.log('PUT payload:', filteredPayload);
               // Use numeric id for URL if present, else fallback to transaction_id
               const urlId = confirmDialog.tx.id !== undefined ? confirmDialog.tx.id : confirmDialog.tx.transaction_id;
-              await axios.put(`http://localhost:8000/user_transactions/${urlId}`, filteredPayload, {
+              await api.put(`/user_transactions/${urlId}`, filteredPayload, {
                 headers: { Authorization: `Bearer ${token}` },
                 withCredentials: true,
               });
@@ -827,7 +825,7 @@ export default function FinancialCalendar() {
               setEditData(null);
             } else if (confirmDialog.action === 'remove') {
               const token = localStorage.getItem('token');
-              await axios.delete(`http://localhost:8000/user_transactions/${confirmDialog.tx.transaction_id}`, {
+              await api.delete(`/user_transactions/${confirmDialog.tx.transaction_id}`, {
                 headers: { Authorization: `Bearer ${token}` },
                 withCredentials: true,
               });

@@ -136,7 +136,7 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
 
         # Try to send email, but don't fail if it doesn't work
         try:
-            verification_link = f"http://localhost:8000/api/auth/verify_email?token={verification_token}"
+            verification_link = f"https://fin-lytics.com/api/auth/verify_email?token={verification_token}"
             email_content = f"Welcome to Fin-lytics! Click the link to verify your email: {verification_link}"
             send_email(create_user_request.email, "Verify your email", email_content)
         except Exception as email_error:
@@ -322,7 +322,7 @@ async def resend_verification(resend_request: ResendVerificationRequest, db: db_
     
     # Send verification email
     try:
-        verification_link = f"http://localhost:8000/api/auth/verify_email?token={verification_token}"
+        verification_link = f"https://fin-lytics.com/api/auth/verify_email?token={verification_token}"
         email_content = f"Welcome to Fin-lytics! Click the link to verify your email: {verification_link}"
         send_email(resend_request.email, "Verify your email", email_content)
         return {"message": "Verification email sent successfully"}

@@ -528,6 +528,7 @@ async def stripe_webhook(
     Handle Stripe webhook events
     You should set the webhook endpoint in Stripe Dashboard to: http://your-domain.com/stripe/webhook
     Note: For local testing, use Stripe CLI: stripe listen --forward-to localhost:8000/stripe/webhook
+    Production webhook URL: https://fin-lytics.com/stripe/webhook
     """
     webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
     

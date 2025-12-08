@@ -16,13 +16,9 @@ const SettingsBlock = () => {
   const fetchLinkToken = useCallback(async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.post(
-        "http://localhost:8000/create_link_token/",
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          withCredentials: true,
-        }
+      const response = await api.post(
+        "/create_link_token/",
+        {}
       );
       setLinkToken(response.data.link_token);
     } catch (error) {
@@ -34,24 +30,17 @@ const SettingsBlock = () => {
   const onSuccess = useCallback(async (publicToken) => {
     try {
       const token = localStorage.getItem("token");
-      await axios.post(
-        "http://localhost:8000/exchange_public_token/",
+      await api.post(
+        "/exchange_public_token/",
         {
           public_token: publicToken,
           account_type: "bank",
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          withCredentials: true,
         }
       );
       setIsLoggedIn(true);
 
       // optionally trigger investment data fetch
-      await axios.get("http://localhost:8000/investments/", {
-        headers: { Authorization: `Bearer ${token}` },
-        withCredentials: true,
-      });
+      await api.get("/investments/");
     } catch (error) {
       console.error("Error exchanging public token:", error.response ? error.response.data : error);
     }
@@ -63,10 +52,7 @@ const SettingsBlock = () => {
       const updatedSettings = { ...settings, [name]: value };
       setSettings(updatedSettings);
 
-      await axios.post("http://localhost:8000/user_settings/", updatedSettings, {
-        headers: { Authorization: `Bearer ${token}` },
-        withCredentials: true,
-      });
+      await api.post("/user_settings/", updatedSettings);
     } catch (error) {
       console.error("Error updating user settings:", error.response ? error.response.data : error);
     }
@@ -75,10 +61,7 @@ const SettingsBlock = () => {
   const handleUpdateUser = async (updateData) => {
     try {
       const token = localStorage.getItem("token");
-      await axios.post("http://localhost:8000/auth/update/", updateData, {
-        headers: { Authorization: `Bearer ${token}` },
-        withCredentials: true,
-      });
+      await api.post("/auth/update/", updateData);
 
       alert("User account settings updated successfully");
       // update local context
@@ -218,13 +201,9 @@ const FinanceSettings = ({ isLoggedIn, linkToken, open, ready, setIsLoggedIn, fe
   const handleFetchBrokerage = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.post(
-        "http://localhost:8000/create_link_token/",
-        { product: "investments" },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          withCredentials: true,
-        }
+      const response = await api.post(
+        "/create_link_token/",
+        { product: "investments" }
       );
       setBrokerageLinkToken(response.data.link_token);
     } catch (error) {
@@ -236,10 +215,7 @@ const FinanceSettings = ({ isLoggedIn, linkToken, open, ready, setIsLoggedIn, fe
   const handleUnlink = async () => {
     try {
       const token = localStorage.getItem("token");
-      await axios.delete("http://localhost:8000/unlink", {
-        headers: { Authorization: `Bearer ${token}` },
-        withCredentials: true,
-      });
+      await api.delete("/unlink");
       setIsLoggedIn(false);
       setIsBrokerageConnected(false);
     } catch (error) {
@@ -253,15 +229,11 @@ const FinanceSettings = ({ isLoggedIn, linkToken, open, ready, setIsLoggedIn, fe
         onSuccess: async (publicToken) => {
           try {
             const token = localStorage.getItem("token");
-            await axios.post(
-              "http://localhost:8000/exchange_public_token/",
+            await api.post(
+              "/exchange_public_token/",
               {
                 public_token: publicToken,
                 account_type: "brokerage",
-              },
-              {
-                headers: { Authorization: `Bearer ${token}` },
-                withCredentials: true,
               }
             );
             setIsBrokerageConnected(true);
