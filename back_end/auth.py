@@ -24,7 +24,8 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30  # Access token duration
 bcrypt = CryptContext(
     schemes=["bcrypt"], 
     deprecated="auto",
-    bcrypt__truncate_error=False  # Allow longer passwords without error
+    bcrypt__rounds=12,  # Match the cost factor from your hash
+    bcrypt__ident="2b"  # Use 2b variant to match your existing hashes
 )
 oauth2_bearer = OAuth2PasswordBearer(tokenUrl="api/auth/token")
 
@@ -155,33 +156,15 @@ def authenticate_user(username: str, password: str, db):
     if not user:
         return False
     
-    # Try verifying password, handling bcrypt 72-byte limit
-    try:
-        # First try the full password (for existing users)
-        if bcrypt.verify(password, user.hashed_password):
-            # Check if user is verified before returning
-            if not user.is_verified:
-                return "unverified"
-            return user
-    except:
-        pass  # If full password fails, try truncated version
-    
-    try:
-        # Try truncated password (for consistency with new hashing)
-        password_to_verify = password
-        if len(password.encode('utf-8')) > 72:
-            password_to_verify = password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
+    # Verify password against stored hash
+    if not bcrypt.verify(password, user.hashed_password):
+        return False
         
-        if bcrypt.verify(password_to_verify, user.hashed_password):
-            # Check if user is verified before returning
-            if not user.is_verified:
-                return "unverified"
-            return user
-    except:
-        pass
-    
-    # If password verification failed
-    return False
+    # Check if user is verified
+    if not user.is_verified:
+        return "unverified"
+        
+    return user
 
 def create_access_token(username: str, user_id: int, expires_delta: timedelta):
     """Creates a JWT token with user details and expiration."""
