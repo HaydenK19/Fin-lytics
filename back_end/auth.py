@@ -66,10 +66,6 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
         if existing_number:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User with this phone number already exists")
 
-        # Truncate password to 72 bytes for bcrypt compatibility
-        password_bytes = create_user_request.password.encode('utf-8')[:72]
-        password_for_hashing = password_bytes.decode('utf-8')
-        
         verification_token = generate_verification_token(create_user_request.email)
         create_user_model = Users(
             first_name=create_user_request.first_name,
@@ -77,7 +73,7 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
             email=create_user_request.email,
             username=create_user_request.username,
             phone_number=create_user_request.phone_number,
-            hashed_password=bcrypt.hash(password_for_hashing),
+            hashed_password=bcrypt.hash(create_user_request.password),
             verification_token=verification_token,
             is_verified=False  # Users must verify their email before logging in
         )
@@ -139,14 +135,7 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,
 def authenticate_user(username: str, password: str, db):
     """Verifies username and password against the database."""
     user = db.query(Users).filter(Users.username == username).first()
-    if not user:
-        return False
-    
-    # Truncate password to 72 bytes for bcrypt compatibility
-    password_bytes = password.encode('utf-8')[:72]
-    password_for_verification = password_bytes.decode('utf-8')
-    
-    if not bcrypt.verify(password_for_verification, user.hashed_password):
+    if not user or not bcrypt.verify(password, user.hashed_password):
         return False
     if not user.is_verified:
         return "unverified"
