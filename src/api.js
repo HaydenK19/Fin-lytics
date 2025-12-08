@@ -1,9 +1,10 @@
 import axios from "axios";
 
 // Debug: Log the current hostname and selected baseURL
-const isProduction = window.location.hostname === 'fin-lytics.com';
-const baseURL = isProduction ? 'https://fin-lytics.com' : "http://127.0.0.1:8000";
-console.log('Frontend API Config:', { hostname: window.location.hostname, isProduction, baseURL });
+const hostname = window.location.hostname;
+const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+const baseURL = isLocalhost ? "http://127.0.0.1:8000" : 'https://fin-lytics.com';
+console.log('Frontend API Config:', { hostname, isLocalhost, baseURL });
 
 const api = axios.create({
   baseURL: baseURL,

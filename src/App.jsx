@@ -1,6 +1,7 @@
 import "./app.scss";
 import React, { useState, useEffect, createContext } from "react";
 import axios from "axios";
+import api from "./api";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { muiTheme } from './theme/theme'; 
@@ -40,13 +41,11 @@ const App = () => {
 
       try {
         const [settingsRes, userInfoRes] = await Promise.all([
-          axios.get("http://localhost:8000/user_settings/", {
+          api.get("/api/user_settings/", {
             headers: authHeaders(),
-            withCredentials: true,
           }),
-          axios.get("http://localhost:8000/user_info/", {
+          api.get("/api/user_info/", {
             headers: authHeaders(),
-            withCredentials: true,
           }),
         ]);
 
