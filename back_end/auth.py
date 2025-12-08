@@ -72,9 +72,14 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
 
         verification_token = generate_verification_token(create_user_request.email)
         
-        # Hash password with error handling
+        # Hash password with bcrypt 72-byte limit handling
         try:
-            hashed_password = bcrypt.hash(create_user_request.password)
+            # Truncate password to 72 bytes if necessary (bcrypt limitation)
+            password_to_hash = create_user_request.password
+            if len(password_to_hash.encode('utf-8')) > 72:
+                password_to_hash = password_to_hash.encode('utf-8')[:72].decode('utf-8', errors='ignore')
+            
+            hashed_password = bcrypt.hash(password_to_hash)
         except Exception as hash_error:
             print(f"Password hashing error: {hash_error}")
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Password processing failed: {str(hash_error)}")
@@ -147,11 +152,36 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,
 def authenticate_user(username: str, password: str, db):
     """Verifies username and password against the database."""
     user = db.query(Users).filter(Users.username == username).first()
-    if not user or not bcrypt.verify(password, user.hashed_password):
+    if not user:
         return False
-    if not user.is_verified:
-        return "unverified"
-    return user
+    
+    # Try verifying password, handling bcrypt 72-byte limit
+    try:
+        # First try the full password (for existing users)
+        if bcrypt.verify(password, user.hashed_password):
+            # Check if user is verified before returning
+            if not user.is_verified:
+                return "unverified"
+            return user
+    except:
+        pass  # If full password fails, try truncated version
+    
+    try:
+        # Try truncated password (for consistency with new hashing)
+        password_to_verify = password
+        if len(password.encode('utf-8')) > 72:
+            password_to_verify = password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
+        
+        if bcrypt.verify(password_to_verify, user.hashed_password):
+            # Check if user is verified before returning
+            if not user.is_verified:
+                return "unverified"
+            return user
+    except:
+        pass
+    
+    # If password verification failed
+    return False
 
 def create_access_token(username: str, user_id: int, expires_delta: timedelta):
     """Creates a JWT token with user details and expiration."""
