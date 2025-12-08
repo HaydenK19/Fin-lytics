@@ -22,6 +22,8 @@ cmds = [
 
 [phases.build]
 cmds = [
+    'rm -rf dist || true',
+    'rm -rf .vite || true', 
     'npm run build --silent',
     'rm -rf node_modules/.cache || true'
 ]
