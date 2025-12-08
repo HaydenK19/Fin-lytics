@@ -130,6 +130,63 @@ async def health_check():
         "database_available": 'SessionLocal' in globals()
     }
 
+# Debug endpoints for Railway login troubleshooting
+@app.get("/api/debug/env")
+async def debug_env():
+    """Debug endpoint to check environment variables (remove in production)"""
+    return {
+        "database_url": bool(os.getenv("DATABASE_URL")),
+        "secret_key": bool(os.getenv("SECRET_KEY")),
+        "plaid_client_id": bool(os.getenv("PLAID_CLIENT_ID")),
+        "stripe_secret": bool(os.getenv("STRIPE_SECRET_KEY")),
+        "environment_count": len([k for k in os.environ.keys() if not k.startswith("_")])
+    }
+
+@app.get("/api/debug/database")
+async def debug_database(db: Session = Depends(get_db)):
+    """Debug endpoint to test database connectivity"""
+    try:
+        if db is None:
+            return {"status": "error", "message": "Database connection failed"}
+        
+        # Test a simple query
+        result = db.execute("SELECT 1 as test").fetchone()
+        return {
+            "status": "success", 
+            "message": "Database connected",
+            "test_query": result[0] if result else None
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Database error: {str(e)}"}
+
+@app.get("/api/debug/user/{username}")
+async def debug_user(username: str, db: Session = Depends(get_db)):
+    """Debug endpoint to check if user exists"""
+    try:
+        if db is None:
+            return {"status": "error", "message": "Database not available"}
+        
+        if 'models' not in globals():
+            return {"status": "error", "message": "Models not loaded"}
+        
+        from models import Users
+        user = db.query(Users).filter(Users.username == username).first()
+        
+        if user:
+            return {
+                "exists": True,
+                "username": user.username,
+                "email": user.email,
+                "is_verified": user.is_verified,
+                "created_at": str(user.created_at) if hasattr(user, 'created_at') else None,
+                "has_password": bool(user.hashed_password)
+            }
+        else:
+            return {"exists": False, "message": f"User '{username}' not found"}
+            
+    except Exception as e:
+        return {"status": "error", "message": f"User check error: {str(e)}"}
+
 # Include API routes with error handling
 def include_router_safe(module, router_name, prefix, tag):
     try:
