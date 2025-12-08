@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 import os
+import bcrypt as bcrypt_lib
 from fastapi import FastAPI, Depends, HTTPException, status, APIRouter
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -21,16 +22,37 @@ SECRET_KEY = os.getenv("JWT_SECRET_KEY", "hello")  # Use environment variable or
 ALGORITHM = "HS256"  # Algorithm for JWT encoding
 ACCESS_TOKEN_EXPIRE_MINUTES = 30  # Access token duration
 
+# Helper functions for bcrypt operations
+def hash_password(password: str) -> str:
+    """Hash password using bcrypt directly"""
+    try:
+        # Encode password and truncate to 72 bytes
+        password_bytes = password.encode('utf-8')[:72]
+        # Generate salt and hash
+        salt = bcrypt_lib.gensalt()
+        hashed = bcrypt_lib.hashpw(password_bytes, salt)
+        return hashed.decode('utf-8')
+    except Exception as e:
+        print(f"Direct bcrypt hashing error: {e}")
+        raise
+
+def verify_password(password: str, hashed: str) -> bool:
+    """Verify password against bcrypt hash directly"""
+    try:
+        # Encode password and truncate to 72 bytes
+        password_bytes = password.encode('utf-8')[:72]
+        hashed_bytes = hashed.encode('utf-8')
+        return bcrypt_lib.checkpw(password_bytes, hashed_bytes)
+    except Exception as e:
+        print(f"Direct bcrypt verification error: {e}")
+        return False
+
+# Keep passlib as backup
 try:
-    # Try to create bcrypt context with version detection disabled
-    bcrypt = CryptContext(
-        schemes=["bcrypt"], 
-        deprecated="auto"
-    )
+    bcrypt = CryptContext(schemes=["bcrypt"], deprecated="auto")
 except Exception as e:
-    print(f"Bcrypt context creation error: {e}")
-    # Fallback bcrypt context
-    bcrypt = CryptContext(schemes=["bcrypt"])
+    print(f"Passlib bcrypt context creation error: {e}")
+    bcrypt = None
 oauth2_bearer = OAuth2PasswordBearer(tokenUrl="api/auth/token")
 
 # Pydantic models
@@ -77,14 +99,9 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
 
         verification_token = generate_verification_token(create_user_request.email)
         
-        # Hash password with bcrypt 72-byte limit handling
+        # Hash password using direct bcrypt
         try:
-            # Truncate password to 72 bytes if necessary (bcrypt limitation)
-            password_to_hash = create_user_request.password
-            if len(password_to_hash.encode('utf-8')) > 72:
-                password_to_hash = password_to_hash.encode('utf-8')[:72].decode('utf-8', errors='ignore')
-            
-            hashed_password = bcrypt.hash(password_to_hash)
+            hashed_password = hash_password(create_user_request.password)
         except Exception as hash_error:
             print(f"Password hashing error: {hash_error}")
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Password processing failed: {str(hash_error)}")
@@ -164,13 +181,10 @@ def authenticate_user(username: str, password: str, db):
         
         print(f"Debug: Found user '{username}', hash starts with: {user.hashed_password[:20]}...")
         
-        # Truncate password to 72 bytes for bcrypt compatibility
-        password_bytes = password.encode('utf-8')[:72]
-        password_for_verification = password_bytes.decode('utf-8', errors='ignore')
-        print(f"Debug: Original password length: {len(password)}, truncated length: {len(password_for_verification)}")
+        print(f"Debug: Original password length: {len(password)}")
         
-        # Verify password against stored hash
-        password_valid = bcrypt.verify(password_for_verification, user.hashed_password)
+        # Verify password against stored hash using direct bcrypt
+        password_valid = verify_password(password, user.hashed_password)
         print(f"Debug: Password verification result: {password_valid}")
         
         if not password_valid:
