@@ -11,9 +11,15 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// Add request interceptor for debugging
+// Add request interceptor for debugging and authentication
 api.interceptors.request.use(
   (config) => {
+    // Automatically add Authorization header if token exists
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+      console.log('🔑 Added Authorization header to request');
+    }
     console.log('API Request:', config.method?.toUpperCase(), config.url, config.baseURL);
     return config;
   },

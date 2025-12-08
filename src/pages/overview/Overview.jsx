@@ -18,10 +18,7 @@ export default function Overview() {
   useEffect(() => {
     const fetchOverview = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const res = await api.get('/overview', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await api.get('/overview');
         setOverviewData(res.data);
       } catch (err) {
         setError(err.message);
