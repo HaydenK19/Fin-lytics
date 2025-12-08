@@ -1,14 +1,35 @@
 import axios from "axios";
 
+// Debug: Log the current hostname and selected baseURL
+const isProduction = window.location.hostname === 'fin-lytics.com';
+const baseURL = isProduction ? 'https://fin-lytics.com' : "http://127.0.0.1:8000";
+console.log('Frontend API Config:', { hostname: window.location.hostname, isProduction, baseURL });
+
 const api = axios.create({
-  baseURL: window.location.hostname === 'fin-lytics.com' ? 'https://fin-lytics.com' : "http://127.0.0.1:8000",
+  baseURL: baseURL,
   withCredentials: true,
 });
 
+// Add request interceptor for debugging
+api.interceptors.request.use(
+  (config) => {
+    console.log('API Request:', config.method?.toUpperCase(), config.url, config.baseURL);
+    return config;
+  },
+  (error) => {
+    console.error('API Request Error:', error);
+    return Promise.reject(error);
+  }
+);
+
 //if we see a 401 response, log the user out
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log('API Response:', response.status, response.config.url);
+    return response;
+  },
   (error) => {
+    console.error('API Response Error:', error.response?.status, error.response?.data, error.config?.url);
     if (error.response && error.response.status === 401) {
       //console.log("401 error intercepted, logging out and redirecting...");
       localStorage.removeItem("token");
