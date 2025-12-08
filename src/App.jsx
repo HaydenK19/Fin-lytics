@@ -34,17 +34,29 @@ const App = () => {
       }
 
       try {
-        const [settingsRes, userInfoRes] = await Promise.all([
-          api.get("/api/user_settings/"),
-          api.get("/api/user_info/"),
-        ]);
-
-        setSettings(settingsRes.data);
-        setUserInfo(userInfoRes.data);
+        // Try to load user settings and info, but don't fail authentication if they fail
         setIsAuthenticated(true);
+        
+        try {
+          const [settingsRes, userInfoRes] = await Promise.all([
+            api.get("/api/user_settings/"),
+            api.get("/api/user_info/"),
+          ]);
+
+          setSettings(settingsRes.data);
+          setUserInfo(userInfoRes.data);
+        } catch (settingsError) {
+          console.error(
+            "Error loading user settings/info:",
+            settingsError.response ? settingsError.response.data : settingsError
+          );
+          // Set default values so the app doesn't get stuck
+          setSettings({ email_notifications: false, push_notifications: false });
+          setUserInfo({ first_name: "User", last_name: "", username: "user", id: null });
+        }
       } catch (error) {
         console.error(
-          "Error during init fetch:",
+          "Error during token validation:",
           error.response ? error.response.data : error
         );
         setIsAuthenticated(false);
