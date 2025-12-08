@@ -4,7 +4,7 @@ import axios from "axios";
 const hostname = window.location.hostname;
 const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
 const baseURL = isLocalhost ? "http://127.0.0.1:8000" : 'https://fin-lytics.com';
-console.log('Frontend API Config v2:', { hostname, isLocalhost, baseURL });
+console.log('Frontend API Config v3 - Auth Fix Deploy:', { hostname, isLocalhost, baseURL });
 
 const api = axios.create({
   baseURL: baseURL,
