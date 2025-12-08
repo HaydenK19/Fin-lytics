@@ -31,9 +31,9 @@ const Sidebar = ({ setIsAuthenticated }) => {
         if (setIsAuthenticated) {
             try {
                 const token = localStorage.getItem("token");
-                const response = await api.get("/");
+                const response = await api.get("/api/user_info/");
 
-                const { first_name, last_name, username, id } = response.data.User;
+                const { first_name, last_name, username, id } = response.data;
                 setUser({ firstName: first_name, lastName: last_name, username, id });
                 console.log(response.data);
             } catch (error) {

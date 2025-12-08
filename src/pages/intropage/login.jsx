@@ -52,11 +52,11 @@ const LoginBlock = ({ isSigningUp: initialSigningUp, setIsAuthenticated }) => {
                 password: password,
             }), { headers: { "Content-Type": "application/x-www-form-urlencoded" } });
 
-            console.log("Login successful:", loginResponse.data);
+            console.log("🎉 Login successful:", loginResponse.data);
             localStorage.setItem("token", loginResponse.data.access_token);
-            console.log("Token stored, setting authenticated to true");
+            console.log("🔑 Token stored, setting authenticated to true");
             setIsAuthenticated(true);
-            console.log("Navigating to home page");
+            console.log("🏠 Navigating to home page");
             navigate("/");
         } catch (error) {
             console.error(

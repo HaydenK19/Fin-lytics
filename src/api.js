@@ -32,7 +32,7 @@ api.interceptors.response.use(
   (error) => {
     console.error('API Response Error:', error.response?.status, error.response?.data, error.config?.url);
     if (error.response && error.response.status === 401) {
-      //console.log("401 error intercepted, logging out and redirecting...");
+      console.log("🚨 401 error intercepted, logging out and redirecting...");
       localStorage.removeItem("token");
       window.location.href = "/";
     }

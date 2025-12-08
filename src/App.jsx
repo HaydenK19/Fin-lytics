@@ -24,18 +24,27 @@ const App = () => {
   const [userInfo, setUserInfo] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Debug wrapper for setIsAuthenticated
+  const debugSetIsAuthenticated = (value) => {
+    console.log(`🔥 setIsAuthenticated called with: ${value}`, new Error().stack);
+    setIsAuthenticated(value);
+  };
+
   useEffect(() => {
     const init = async () => {
       const token = localStorage.getItem("token");
       if (!token) {
+        console.log("🔑 No token found in localStorage");
         setLoading(false);
-        setIsAuthenticated(false);
+        debugSetIsAuthenticated(false);
         return;
       }
+      console.log("🔑 Token found, attempting authentication");
 
       try {
         // Try to load user settings and info, but don't fail authentication if they fail
-        setIsAuthenticated(true);
+        console.log("✅ Token valid, setting authenticated to true");
+        debugSetIsAuthenticated(true);
         
         try {
           const [settingsRes, userInfoRes] = await Promise.all([
@@ -53,13 +62,14 @@ const App = () => {
           // Set default values so the app doesn't get stuck
           setSettings({ email_notifications: false, push_notifications: false });
           setUserInfo({ first_name: "User", last_name: "", username: "user", id: null });
+          console.log("🔧 Set default user settings due to API error");
         }
       } catch (error) {
         console.error(
-          "Error during token validation:",
+          "🚨 Error during token validation:",
           error.response ? error.response.data : error
         );
-        setIsAuthenticated(false);
+        debugSetIsAuthenticated(false);
       } finally {
         setLoading(false);
       }
@@ -85,16 +95,16 @@ const App = () => {
             <Routes>
               <Route
                 path="/*"
-                element={<Dashboard isAuthenticated={isAuthenticated} setIsAuthenticated={setIsAuthenticated}/>}
+                element={<Dashboard isAuthenticated={isAuthenticated} setIsAuthenticated={debugSetIsAuthenticated}/>}
               />
             </Routes>
           ) : (
             <>
               <IntroNavbar />
               <Routes>
-                <Route path="/" element={<Intropage setIsAuthenticated={setIsAuthenticated} />} />
+                <Route path="/" element={<Intropage setIsAuthenticated={debugSetIsAuthenticated} />} />
                 <Route path="/about" element={<About />} />
-                <Route path="/login" element={<Intropage setIsAuthenticated={setIsAuthenticated} />} />
+                <Route path="/login" element={<Intropage setIsAuthenticated={debugSetIsAuthenticated} />} />
                 <Route path="*" element={<NoPage />} />
               </Routes>
             </>
