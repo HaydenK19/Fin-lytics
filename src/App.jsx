@@ -24,12 +24,6 @@ const App = () => {
   const [userInfo, setUserInfo] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // helper to add token headers
-  const authHeaders = () => {
-    const token = localStorage.getItem("token");
-    return { Authorization: `Bearer ${token}` };
-  };
-
   useEffect(() => {
     const init = async () => {
       const token = localStorage.getItem("token");
@@ -41,12 +35,8 @@ const App = () => {
 
       try {
         const [settingsRes, userInfoRes] = await Promise.all([
-          api.get("/api/user_settings/", {
-            headers: authHeaders(),
-          }),
-          api.get("/api/user_info/", {
-            headers: authHeaders(),
-          }),
+          api.get("/api/user_settings/"),
+          api.get("/api/user_info/"),
         ]);
 
         setSettings(settingsRes.data);
