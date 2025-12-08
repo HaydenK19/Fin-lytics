@@ -133,7 +133,7 @@ export default function AddTransactionDialog({ open, onClose, defaultDate, onCre
       if (onSubmit) {
         await onSubmit(payload);
       } else {
-        const resp = await api.post('/user_transactions/', payload);
+        const resp = await api.post('/api/user_transactions/', payload);
         if (onCreated) onCreated(payload);
       }
       setLoading(false);

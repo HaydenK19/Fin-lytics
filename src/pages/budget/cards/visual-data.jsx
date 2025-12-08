@@ -61,7 +61,7 @@ const VisualCard = () => {
         // fetch category colors first, then pie chart data
         const colors = await fetchCategoryColors();
         
-        api.get(`/pie_chart/${userId}`)
+        api.get(`/api/pie_chart/${userId}`)
             .then((response) => {
                 const data = response.data;
 

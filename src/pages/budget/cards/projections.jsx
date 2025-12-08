@@ -812,7 +812,7 @@ const RecurringTransactionWidget = ({ onSuccess }) => {
                 end_date: formData.end_date || null
             };
 
-            await api.post('/user_transactions/', payload);
+            await api.post('/api/user_transactions/', payload);
 
             setMessage({ text: 'Recurring transaction created successfully!', type: 'success' });
             

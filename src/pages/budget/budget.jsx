@@ -59,7 +59,7 @@ const MyAccounts = ({ refreshTrigger = 0 }) => {
       try {
         const token = localStorage.getItem("token");
         
-        const response = await api.get("/user_balances/");
+        const response = await api.get("/api/user_balances/");
 
         const data = response.data;
         console.log("Unified balance response:", data);

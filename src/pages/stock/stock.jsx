@@ -60,12 +60,8 @@ function Stock() {
       setLoadingMovers(true);
 
       const [gRes, lRes] = await Promise.all([
-        fetch("http://127.0.0.1:8000/stocks/gainers", {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        }),
-        fetch("http://127.0.0.1:8000/stocks/losers", {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        }),
+        api.get("/stocks/gainers"),
+        api.get("/stocks/losers"),
       ]);
 
       if (!gRes.ok || !lRes.ok) throw new Error("Failed to fetch market movers");
@@ -118,15 +114,8 @@ function Stock() {
         return;
       }
 
-      const res = await fetch("http://127.0.0.1:8000/stocks/predictions/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({
-          tickers: ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "BRK.B", "TSLA"],
-        }),
+      const res = await api.post("/stocks/predictions/generate", {
+        tickers: ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "BRK.B", "TSLA"],
       });
 
       if (!res.ok) throw new Error("Prediction fetch failed");

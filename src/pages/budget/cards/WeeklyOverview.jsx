@@ -784,7 +784,7 @@ export default function FinancialCalendar() {
             setActionLoading(true);
             if (confirmDialog.action === 'add') {
               const token = localStorage.getItem('token');
-              await api.post('/user_transactions/', confirmDialog.tx, {
+              await api.post('/api/user_transactions/', confirmDialog.tx, {
                 headers: { Authorization: `Bearer ${token}` },
                 withCredentials: true,
               });
