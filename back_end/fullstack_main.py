@@ -142,6 +142,18 @@ async def debug_env():
         "environment_count": len([k for k in os.environ.keys() if not k.startswith("_")])
     }
 
+@app.get("/api/debug/routes")
+async def debug_routes():
+    """Debug endpoint to check router registration status"""
+    return {
+        "router_registration_status": router_status,
+        "available_modules": list(route_modules.keys()),
+        "loaded_modules": [name for name, module in route_modules.items() if module is not None],
+        "failed_modules": [name for name, status in router_status.items() if not status],
+        "auth_module_type": str(type(auth_module)) if auth_module else "None",
+        "auth_has_router": hasattr(auth_module, "router") if auth_module else False
+    }
+
 @app.get("/api/debug/database")
 async def debug_database(db: Session = Depends(get_db)):
     """Debug endpoint to test database connectivity"""
@@ -203,20 +215,38 @@ def include_router_safe(module, router_name, prefix, tag):
         return False
 
 # Include routers for available modules
-include_router_safe(auth_module, "router", "/api/auth", "Authentication")
-include_router_safe(user_info_module, "router", "/api/user", "User")
-include_router_safe(user_settings_module, "router", "/api/settings", "Settings")
-include_router_safe(user_categories_module, "router", "/api/categories", "Categories")
-include_router_safe(stock_routes_module, "router", "/api/stocks", "Stocks")
-include_router_safe(overview_routes_module, "router", "/api/overview", "Overview")
-include_router_safe(pie_chart_module, "router", "/api/charts", "Charts")
-include_router_safe(user_balances_module, "router", "/api/balances", "Balances")
-include_router_safe(user_transactions_module, "router", "/api/transactions", "Transactions")
-include_router_safe(entered_transactions_module, "router", "/api/entered-transactions", "Entered Transactions")
-include_router_safe(balance_routes_module, "router", "/api/account-balances", "Account Balances")
-include_router_safe(budget_goals_module, "router", "/api/budget", "Budget Goals")
-include_router_safe(stripe_routes_module, "router", "/api/stripe", "Stripe")
-include_router_safe(plaid_routes_module, "router", "/api/plaid", "Plaid")
+route_modules = {
+    "auth": auth_module,
+    "user_info": user_info_module, 
+    "user_settings": user_settings_module,
+    "user_categories": user_categories_module,
+    "stock_routes": stock_routes_module,
+    "overview_routes": overview_routes_module,
+    "pie_chart": pie_chart_module,
+    "user_balances": user_balances_module,
+    "user_transactions": user_transactions_module,
+    "entered_transactions": entered_transactions_module,
+    "balance_routes": balance_routes_module,
+    "budget_goals": budget_goals_module,
+    "stripe_routes": stripe_routes_module,
+    "plaid_routes": plaid_routes_module
+}
+
+router_status = {}
+router_status["auth"] = include_router_safe(auth_module, "router", "/api/auth", "Authentication")
+router_status["user_info"] = include_router_safe(user_info_module, "router", "/api/user", "User")
+router_status["user_settings"] = include_router_safe(user_settings_module, "router", "/api/settings", "Settings")
+router_status["user_categories"] = include_router_safe(user_categories_module, "router", "/api/categories", "Categories")
+router_status["stock_routes"] = include_router_safe(stock_routes_module, "router", "/api/stocks", "Stocks")
+router_status["overview_routes"] = include_router_safe(overview_routes_module, "router", "/api/overview", "Overview")
+router_status["pie_chart"] = include_router_safe(pie_chart_module, "router", "/api/charts", "Charts")
+router_status["user_balances"] = include_router_safe(user_balances_module, "router", "/api/balances", "Balances")
+router_status["user_transactions"] = include_router_safe(user_transactions_module, "router", "/api/transactions", "Transactions")
+router_status["entered_transactions"] = include_router_safe(entered_transactions_module, "router", "/api/entered-transactions", "Entered Transactions")
+router_status["balance_routes"] = include_router_safe(balance_routes_module, "router", "/api/account-balances", "Account Balances")
+router_status["budget_goals"] = include_router_safe(budget_goals_module, "router", "/api/budget", "Budget Goals")
+router_status["stripe_routes"] = include_router_safe(stripe_routes_module, "router", "/api/stripe", "Stripe")
+router_status["plaid_routes"] = include_router_safe(plaid_routes_module, "router", "/api/plaid", "Plaid")
 
 # Serve static files (React build)
 static_dir = os.path.join(os.path.dirname(__file__), "..", "dist")
