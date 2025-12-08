@@ -21,7 +21,16 @@ SECRET_KEY = os.getenv("JWT_SECRET_KEY", "hello")  # Use environment variable or
 ALGORITHM = "HS256"  # Algorithm for JWT encoding
 ACCESS_TOKEN_EXPIRE_MINUTES = 30  # Access token duration
 
-bcrypt = CryptContext(schemes=["bcrypt"], deprecated="auto")
+try:
+    # Try to create bcrypt context with version detection disabled
+    bcrypt = CryptContext(
+        schemes=["bcrypt"], 
+        deprecated="auto"
+    )
+except Exception as e:
+    print(f"Bcrypt context creation error: {e}")
+    # Fallback bcrypt context
+    bcrypt = CryptContext(schemes=["bcrypt"])
 oauth2_bearer = OAuth2PasswordBearer(tokenUrl="api/auth/token")
 
 # Pydantic models
@@ -155,8 +164,13 @@ def authenticate_user(username: str, password: str, db):
         
         print(f"Debug: Found user '{username}', hash starts with: {user.hashed_password[:20]}...")
         
+        # Truncate password to 72 bytes for bcrypt compatibility
+        password_bytes = password.encode('utf-8')[:72]
+        password_for_verification = password_bytes.decode('utf-8', errors='ignore')
+        print(f"Debug: Original password length: {len(password)}, truncated length: {len(password_for_verification)}")
+        
         # Verify password against stored hash
-        password_valid = bcrypt.verify(password, user.hashed_password)
+        password_valid = bcrypt.verify(password_for_verification, user.hashed_password)
         print(f"Debug: Password verification result: {password_valid}")
         
         if not password_valid:
