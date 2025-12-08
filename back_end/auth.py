@@ -22,7 +22,7 @@ ALGORITHM = "HS256"  # Algorithm for JWT encoding
 ACCESS_TOKEN_EXPIRE_MINUTES = 30  # Access token duration
 
 bcrypt = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_bearer = OAuth2PasswordBearer(tokenUrl="auth/token")
+oauth2_bearer = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
 
 # Pydantic models
 class CreateUserRequest(BaseModel):
