@@ -21,12 +21,7 @@ SECRET_KEY = os.getenv("JWT_SECRET_KEY", "hello")  # Use environment variable or
 ALGORITHM = "HS256"  # Algorithm for JWT encoding
 ACCESS_TOKEN_EXPIRE_MINUTES = 30  # Access token duration
 
-bcrypt = CryptContext(
-    schemes=["bcrypt"], 
-    deprecated="auto",
-    bcrypt__rounds=12,  # Match the cost factor from your hash
-    bcrypt__ident="2b"  # Use 2b variant to match your existing hashes
-)
+bcrypt = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_bearer = OAuth2PasswordBearer(tokenUrl="api/auth/token")
 
 # Pydantic models
@@ -152,19 +147,31 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,
 
 def authenticate_user(username: str, password: str, db):
     """Verifies username and password against the database."""
-    user = db.query(Users).filter(Users.username == username).first()
-    if not user:
-        return False
-    
-    # Verify password against stored hash
-    if not bcrypt.verify(password, user.hashed_password):
-        return False
+    try:
+        user = db.query(Users).filter(Users.username == username).first()
+        if not user:
+            print(f"Debug: User '{username}' not found")
+            return False
         
-    # Check if user is verified
-    if not user.is_verified:
-        return "unverified"
+        print(f"Debug: Found user '{username}', hash starts with: {user.hashed_password[:20]}...")
         
-    return user
+        # Verify password against stored hash
+        password_valid = bcrypt.verify(password, user.hashed_password)
+        print(f"Debug: Password verification result: {password_valid}")
+        
+        if not password_valid:
+            return False
+            
+        # Check if user is verified
+        if not user.is_verified:
+            print(f"Debug: User '{username}' not verified")
+            return "unverified"
+            
+        print(f"Debug: Authentication successful for '{username}'")
+        return user
+    except Exception as e:
+        print(f"Debug: Authentication error for '{username}': {e}")
+        return False
 
 def create_access_token(username: str, user_id: int, expires_delta: timedelta):
     """Creates a JWT token with user details and expiration."""
