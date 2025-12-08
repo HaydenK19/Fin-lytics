@@ -79,8 +79,7 @@ export default function FinancialCalendar() {
       const payload = JSON.parse(atob(token.split('.')[1]));
       const userId = payload.id;
       
-      const response = await api.get(`/user_categories/${userId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const response = await api.get(`/api/user_categories/${userId}`, {
         withCredentials: true,
       });
       
@@ -131,8 +130,7 @@ export default function FinancialCalendar() {
     }
     try {
       const token = localStorage.getItem('token');
-      const resp = await api.get(`/user_transactions/?start_date=${formatISO(start)}&end_date=${formatISO(end)}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const resp = await api.get(`/api/user_transactions/?start_date=${formatISO(start)}&end_date=${formatISO(end)}`, {
         withCredentials: true,
       });
       const all = [ 
@@ -172,8 +170,7 @@ export default function FinancialCalendar() {
     const in30 = addDays(today, 30);
     try {
       const token = localStorage.getItem('token');
-      const resp = await api.get(`/user_transactions/?start_date=${formatISO(today)}&end_date=${formatISO(in30)}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const resp = await api.get(`/api/user_transactions/?start_date=${formatISO(today)}&end_date=${formatISO(in30)}`, {
         withCredentials: true,
       });
       const all = [
@@ -809,8 +806,7 @@ export default function FinancialCalendar() {
               console.log('PUT payload:', filteredPayload);
               // Use numeric id for URL if present, else fallback to transaction_id
               const urlId = confirmDialog.tx.id !== undefined ? confirmDialog.tx.id : confirmDialog.tx.transaction_id;
-              await api.put(`/user_transactions/${urlId}`, filteredPayload, {
-                headers: { Authorization: `Bearer ${token}` },
+              await api.put(`/api/user_transactions/${urlId}`, filteredPayload, {
                 withCredentials: true,
               });
               setEventsByDate(prev => {
@@ -825,8 +821,7 @@ export default function FinancialCalendar() {
               setEditData(null);
             } else if (confirmDialog.action === 'remove') {
               const token = localStorage.getItem('token');
-              await api.delete(`/user_transactions/${confirmDialog.tx.transaction_id}`, {
-                headers: { Authorization: `Bearer ${token}` },
+              await api.delete(`/api/user_transactions/${confirmDialog.tx.transaction_id}`, {
                 withCredentials: true,
               });
               setEventsByDate(prev => {

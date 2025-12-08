@@ -131,7 +131,7 @@ const ProjectionsCard = () => {
         try {
             setLoadingCategories(true);
             const token = localStorage.getItem('token');
-            const response = await api.get('/user_transactions/');sole.error('Error fetching categories:', error);
+            const response = await api.get('/api/user_transactions/');sole.error('Error fetching categories:', error);
         } finally {
             setLoadingCategories(false);
         }
@@ -142,7 +142,7 @@ const ProjectionsCard = () => {
             setLoadingTransactions(true);
             const token = localStorage.getItem('token');
             
-            const response = await api.get('/user_transactions/', {
+            const response = await api.get('/api/user_transactions/', {
                 params: { 
                     recurring_only: true 
                 }

@@ -45,7 +45,7 @@ const EditTransactions = ({ onClose }) => {
             if (!token) return;
             const payload = JSON.parse(atob(token.split('.')[1]));
             const userId = payload.id;
-            const response = await api.get(`/user_categories/${userId}`);
+            const response = await api.get(`/api/user_categories/${userId}`);
             const colorMap = {};
             response.data.forEach(category => {
                 if (category.name) {
@@ -376,7 +376,7 @@ const EditTransactions = ({ onClose }) => {
                     // parent_transaction_id should be numeric; transaction.transaction_id is like 'user-123'
                     if (transaction.source === 'user') {
                         const numericId = transaction.transaction_id.replace('user-', '');
-                        endpoint = `/user_transactions/recurring/${numericId}`;
+                        endpoint = `/api/user_transactions/recurring/${numericId}`;
                     } else {
                         alert("Only user-created recurring parents can be deleted in bulk.");
                         return;
@@ -710,7 +710,7 @@ const EditTransactions = ({ onClose }) => {
                             // Refresh all transactions after adding a new one
                             try {
                                 const token = localStorage.getItem("token");
-                                const response = await api.get("/user_transactions/");
+                                const response = await api.get("/api/user_transactions/");
 
                                 const { plaid_transactions = [], db_transactions = [], user_transactions = [] } = response.data;
                                 

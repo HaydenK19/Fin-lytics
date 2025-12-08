@@ -29,7 +29,7 @@ const TransactionCard = () => {
             const payload = JSON.parse(atob(token.split('.')[1]));
             const userId = payload.id;
             
-            const response = await api.get(`/user_categories/${userId}`);
+            const response = await api.get(`/api/user_categories/${userId}`);
             
             const colorMap = {};
             response.data.forEach(category => {
@@ -73,7 +73,7 @@ const TransactionCard = () => {
         const fetchTransactions = async () => {
             try {
                 const token = localStorage.getItem("token");
-                const response = await api.get("/user_transactions/");
+                const response = await api.get("/api/user_transactions/");
 
                 // Combine all transaction sources
                 const allTransactions = [
